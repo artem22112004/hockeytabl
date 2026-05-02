@@ -13,9 +13,10 @@ interface NavbarProps {
 }
 
 const NAV_LINKS = [
-  { href: '/skaters', label: 'Skaters' },
-  { href: '/goalies', label: 'Goalies' },
-  { href: '/teams',   label: 'Teams'   },
+  { href: '/skaters',      label: 'Skaters'      },
+  { href: '/goalies',      label: 'Goalies'      },
+  { href: '/teams',        label: 'Teams'        },
+  { href: '/match-center', label: 'Match Center' },
 ];
 
 export default function Navbar({ season, onSeasonChange }: NavbarProps) {
