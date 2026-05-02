@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
 
 const NAV_LINKS = [
+  { href: '/matches',      label: 'Matches'      },
   { href: '/skaters',      label: 'Skaters'      },
   { href: '/goalies',      label: 'Goalies'      },
   { href: '/teams',        label: 'Teams'        },
