@@ -3,10 +3,10 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import StatsTable from '@/components/StatsTable';
-import PlayerModal from '@/components/PlayerModal';
 import SeasonSelector from '@/components/SeasonSelector';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
@@ -22,20 +22,12 @@ function fmtToi(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-interface SelectedPlayer {
-  id: number;
-  name: string;
-  headshot: string;
-  teamAbbrev: string;
-}
-
 type Row = any;
 
 export default function SkatersPage() {
   const { season } = useSeason();
   const [posFilter, setPosFilter]   = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
-  const [selected, setSelected]     = useState<SelectedPlayer | null>(null);
 
   const { data, error, isLoading } = useSWR<any>(
     `/api/skaters?season=${season}`,
@@ -77,23 +69,23 @@ export default function SkatersPage() {
         header: 'Player',
         accessorFn: (r) => `${r.firstName.default} ${r.lastName.default}`,
         cell: ({ row }) => {
-          const p = row.original;
+          const p    = row.original;
           const name = `${p.firstName.default} ${p.lastName.default}`;
           return (
-            <button
-              onClick={() => setSelected({ id: p.id, name, headshot: p.headshot, teamAbbrev: p.teamAbbrev })}
-              className="flex items-center gap-2 text-white hover:text-accent"
+            <Link
+              href={`/player/${p.id}`}
+              className="flex items-center gap-2 text-white transition-colors hover:text-[#3b82f6]"
             >
               <Image
                 src={p.headshot}
                 alt={name}
                 width={28}
                 height={28}
-                className="rounded-full object-cover"
+                className="shrink-0 rounded-full object-cover ring-1 ring-border"
                 unoptimized
               />
               <span className="font-medium underline-offset-2 hover:underline">{name}</span>
-            </button>
+            </Link>
           );
         },
       },
@@ -104,10 +96,13 @@ export default function SkatersPage() {
         cell: ({ row }) => {
           const p = row.original;
           return (
-            <div className="flex items-center gap-1.5">
+            <Link
+              href={`/team/${p.teamAbbrev}`}
+              className="flex items-center gap-1.5 transition-colors hover:text-[#3b82f6]"
+            >
               <Image src={teamLogoUrl(p.teamAbbrev)} alt={p.teamAbbrev} width={20} height={20} unoptimized />
               <span className="text-muted">{p.teamAbbrev}</span>
-            </div>
+            </Link>
           );
         },
       },
@@ -121,7 +116,7 @@ export default function SkatersPage() {
         id: 'pts',
         header: 'PTS',
         accessorFn: (r) => r.pts,
-        cell: (i) => <span className="font-bold text-accent">{i.getValue() as number}</span>,
+        cell: (i) => <span className="font-bold text-[#3b82f6]">{i.getValue() as number}</span>,
       },
       {
         id: 'g',
@@ -183,52 +178,41 @@ export default function SkatersPage() {
         aria-label="Filter by team"
       >
         {teams.map((t) => (
-          <option key={t as string} value={t as string}>{t === 'All' ? 'All Teams' : t as string}</option>
+          <option key={t as string} value={t as string}>
+            {t === 'All' ? 'All Teams' : t as string}
+          </option>
         ))}
       </select>
     </>
   );
 
   return (
-    <>
-      {selected && (
-        <PlayerModal
-          playerId={selected.id}
-          playerName={selected.name}
-          headshot={selected.headshot}
-          teamAbbrev={selected.teamAbbrev}
-          season={season}
-          onClose={() => setSelected(null)}
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-white">Skater Stats</h1>
+        <SeasonSelector />
+      </div>
+
+      {isLoading && <LoadingSpinner />}
+      {error     && <ErrorMsg />}
+
+      {!isLoading && !error && (
+        <StatsTable
+          data={filtered}
+          columns={columns}
+          globalFilterKey="firstName"
+          globalFilterPlaceholder="Search player…"
+          filterControls={filterControls}
         />
       )}
-
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold text-white">Skater Stats</h1>
-          <SeasonSelector />
-        </div>
-
-        {isLoading && <LoadingSpinner />}
-        {error     && <ErrorMsg />}
-
-        {!isLoading && !error && (
-          <StatsTable
-            data={filtered}
-            columns={columns}
-            globalFilterKey="firstName"
-            globalFilterPlaceholder="Search player…"
-            filterControls={filterControls}
-          />
-        )}
-      </div>
-    </>
+    </div>
   );
 }
 
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-24">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-accent" />
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-[#3b82f6]" />
     </div>
   );
 }

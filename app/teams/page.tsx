@@ -3,24 +3,21 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import StatsTable from '@/components/StatsTable';
-import TeamModal from '@/components/TeamModal';
 import SeasonSelector from '@/components/SeasonSelector';
 import { teamLogoUrl } from '@/lib/nhl-api';
 import { useSeason } from '@/components/SeasonContext';
 
 type GroupBy = 'none' | 'conference' | 'division';
 
-interface SelectedTeam { abbrev: string; name: string; logo: string }
-
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function TeamsPage() {
   const { season } = useSeason();
-  const [groupBy, setGroupBy]   = useState<GroupBy>('division');
-  const [selected, setSelected] = useState<SelectedTeam | null>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>('division');
 
   const { data, error, isLoading } = useSWR<any>(
     '/api/teams',
@@ -37,17 +34,19 @@ export default function TeamsPage() {
         header: 'Team',
         accessorFn: (r) => r.teamCommonName.default,
         cell: ({ row }) => {
-          const t = row.original;
+          const t      = row.original;
           const abbrev = t.teamAbbrev.default;
           return (
-            <button
-              onClick={() => setSelected({ abbrev, name: t.teamName.default, logo: teamLogoUrl(abbrev) })}
-              className="flex items-center gap-2 text-left hover:text-accent"
+            <Link
+              href={`/team/${abbrev}`}
+              className="flex items-center gap-2 text-left transition-colors hover:text-[#3b82f6]"
             >
               <Image src={teamLogoUrl(abbrev)} alt={abbrev} width={24} height={24} unoptimized />
-              <span className="font-medium text-white underline-offset-2 hover:underline">{t.teamName.default}</span>
+              <span className="font-medium text-white underline-offset-2 hover:underline">
+                {t.teamName.default}
+              </span>
               <span className="text-xs text-muted">({abbrev})</span>
-            </button>
+            </Link>
           );
         },
       },
@@ -79,7 +78,7 @@ export default function TeamsPage() {
         id: 'pts',
         header: 'PTS',
         accessorFn: (r) => r.points,
-        cell: (i) => <span className="font-bold text-accent">{i.getValue() as number}</span>,
+        cell: (i) => <span className="font-bold text-[#3b82f6]">{i.getValue() as number}</span>,
       },
       {
         id: 'gf',
@@ -117,22 +116,17 @@ export default function TeamsPage() {
   );
 
   return (
-    <>
-    {selected && (
-      <TeamModal
-        abbrev={selected.abbrev}
-        teamName={selected.name}
-        teamLogo={selected.logo}
-        season={season}
-        onClose={() => setSelected(null)}
-      />
-    )}
-    <PageShell groupBy={groupBy} setGroupBy={setGroupBy}>
+    <PageShell groupBy={groupBy} setGroupBy={setGroupBy} season={season}>
       {isLoading && <LoadingSpinner />}
       {error     && <ErrorMsg />}
 
       {!isLoading && !error && groupBy === 'none' && (
-        <StatsTable data={teams} columns={columns} globalFilterKey="teamCommonName" globalFilterPlaceholder="Search team…" />
+        <StatsTable
+          data={teams}
+          columns={columns}
+          globalFilterKey="teamCommonName"
+          globalFilterPlaceholder="Search team…"
+        />
       )}
 
       {!isLoading && !error && groupBy !== 'none' &&
@@ -144,7 +138,6 @@ export default function TeamsPage() {
         ))
       }
     </PageShell>
-    </>
   );
 }
 
@@ -157,28 +150,36 @@ function groupTeams(teams: any[], by: 'conference' | 'division') {
   }
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, rows]) => ({ label, rows: rows.sort((a, b) => b.points - a.points) }));
+    .map(([label, rows]) => ({ label, rows: rows.sort((a: any, b: any) => b.points - a.points) }));
 }
 
-function PageShell({ groupBy, setGroupBy, children }: {
-  groupBy: GroupBy; setGroupBy: (g: GroupBy) => void; children: React.ReactNode;
+function PageShell({ groupBy, setGroupBy, season, children }: {
+  groupBy: GroupBy;
+  setGroupBy: (g: GroupBy) => void;
+  season: string;
+  children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">Team Standings</h1>
         <div className="flex items-center gap-3">
-        <SeasonSelector />
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface p-1">
-          {(['none', 'conference', 'division'] as GroupBy[]).map((g) => (
-            <button key={g} onClick={() => setGroupBy(g)}
-              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-                groupBy === g ? 'bg-accent text-white' : 'text-muted hover:text-white'
-              }`}>
-              {g === 'none' ? 'League' : g === 'conference' ? 'Conference' : 'Division'}
-            </button>
-          ))}
-        </div>
+          <SeasonSelector />
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
+            {(['none', 'conference', 'division'] as GroupBy[]).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGroupBy(g)}
+                className={`rounded px-3 py-1 text-sm font-medium transition-all duration-150 ${
+                  groupBy === g
+                    ? 'bg-gradient-to-r from-[#3b82f6]/20 to-[#06b6d4]/20 text-white'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                {g === 'none' ? 'League' : g === 'conference' ? 'Conference' : 'Division'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       {children}
@@ -189,7 +190,7 @@ function PageShell({ groupBy, setGroupBy, children }: {
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-24">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-accent" />
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-[#3b82f6]" />
     </div>
   );
 }
