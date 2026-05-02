@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HockeyTables — NHL Stats</title>
+  <style>
+    /* ── Variables ── */
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2128;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #1f6feb;
+      --green:    #3fb950;
+      --red:      #f85149;
+      --nav-h:    52px;
+      --radius:   8px;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { color-scheme: dark; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── Nav ── */
+    #navbar {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--nav-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 20px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 17px; font-weight: 700; color: var(--text);
+      text-decoration: none; white-space: nowrap; flex-shrink: 0;
+    }
+    .nav-links { display: flex; align-items: center; gap: 3px; flex: 1; }
+    .nav-btn {
+      padding: 5px 14px; border-radius: 6px; border: none;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      background: none; color: var(--muted);
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-btn:hover { background: var(--surface2); color: var(--text); }
+    .nav-btn.active { background: var(--accent); color: #fff; }
+    .season-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .season-label { font-size: 12px; color: var(--muted); }
+    select {
+      background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 10px; font-size: 13px; cursor: pointer; outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Main ── */
+    #app { max-width: 1600px; margin: 0 auto; padding: 24px 20px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Page header ── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+    }
+    .page-title { font-size: 22px; font-weight: 700; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+    input[type="search"] {
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 12px; font-size: 13px; width: 200px; outline: none;
+    }
+    input[type="search"]:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    /* ── Table wrapper ── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      position: sticky; top: var(--nav-h);
+      background: var(--surface); color: var(--muted);
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 10px 12px; text-align: left; white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none; z-index: 10;
+    }
+    thead th:hover { color: var(--text); }
+    thead th.sorted { color: var(--text); }
+    .sort-icon { display: inline-block; margin-left: 3px; font-size: 10px; opacity: 0.4; }
+    .sorted .sort-icon { opacity: 1; color: var(--accent); }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:nth-child(odd)  { background: var(--bg); }
+    tbody tr:nth-child(even) { background: rgba(22,27,34,0.6); }
+    tbody tr:hover { background: var(--surface2) !important; }
+    td { padding: 8px 12px; white-space: nowrap; }
+
+    /* ── Cell helpers ── */
+    .dim { color: var(--muted); }
+    .pts-val { color: var(--accent); font-weight: 700; }
+    .g-val { font-weight: 600; }
+    .green { color: var(--green); }
+    .red { color: var(--red); }
+    .player-cell { display: flex; align-items: center; gap: 8px; }
+    .headshot {
+      width: 28px; height: 28px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+      background: var(--surface2);
+    }
+    .player-link { color: var(--text); font-weight: 500; text-decoration: none; }
+    .player-link:hover { color: var(--accent); }
+    .team-cell { display: flex; align-items: center; gap: 6px; }
+    .team-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+
+    /* ── Row count ── */
+    .row-count { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+    /* ── Loading ── */
+    .loading-wrap {
+      display: flex; align-items: center; justify-content: center;
+      padding: 80px 0; gap: 12px; color: var(--muted);
+    }
+    .spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid var(--border); border-top-color: var(--accent);
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ── */
+    .error-box {
+      background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.4);
+      border-radius: var(--radius); padding: 20px; color: #f85149;
+    }
+    .error-box p { margin-top: 6px; font-size: 12px; opacity: 0.75; }
+
+    /* ── Group toggle ── */
+    .toggle-group {
+      display: flex; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 3px; gap: 2px;
+    }
+    .toggle-btn {
+      padding: 4px 12px; border-radius: 6px; border: none;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      background: none; color: var(--muted); transition: all 0.15s;
+    }
+    .toggle-btn:hover { color: var(--text); }
+    .toggle-btn.active { background: var(--accent); color: #fff; }
+
+    /* ── Section heading (grouped) ── */
+    .section-heading {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin: 24px 0 8px; padding-left: 2px;
+    }
+    .section-heading:first-child { margin-top: 0; }
+
+    /* ── Home ── */
+    .home-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 40px; padding: 60px 0;
+    }
+    .home-title { font-size: 36px; font-weight: 800; }
+    .home-sub { color: var(--muted); font-size: 16px; margin-top: 8px; }
+    .home-cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px; width: 100%; max-width: 760px;
+    }
+    .home-card {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 24px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      text-align: left;
+    }
+    .home-card:hover { border-color: var(--accent); background: var(--surface2); }
+    .home-card-icon { font-size: 28px; }
+    .home-card-title { font-size: 16px; font-weight: 600; }
+    .home-card-desc { font-size: 13px; color: var(--muted); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      #navbar { padding: 0 12px; }
+      .nav-logo .logo-text { display: none; }
+      #app { padding: 16px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="11" stroke="#1f6feb" stroke-width="1.8"/>
+      <ellipse cx="12" cy="16" rx="5.5" ry="2.2" fill="#1f6feb" opacity=".65"/>
+      <path d="M7 12c1.2-3 3.5-5.5 5-5.5S16.8 9 18 12" stroke="#1f6feb" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <span class="logo-text">HockeyTables</span>
+  </div>
+  <div class="nav-links">
+    <button class="nav-btn" data-view="home">Home</button>
+    <button class="nav-btn" data-view="skaters">Skaters</button>
+    <button class="nav-btn" data-view="goalies">Goalies</button>
+    <button class="nav-btn" data-view="teams">Teams</button>
+  </div>
+  <div class="season-wrap">
+    <span class="season-label">Season</span>
+    <select id="season-select">
+      <option value="20242025">2024-25</option>
+      <option value="20232024">2023-24</option>
+      <option value="20222023">2022-23</option>
+    </select>
+  </div>
+</nav>
+
+<main id="app">
+  <div id="view-home"    class="view"></div>
+  <div id="view-skaters" class="view"></div>
+  <div id="view-goalies" class="view"></div>
+  <div id="view-teams"   class="view"></div>
+</main>
+
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────
+   CONFIG
+───────────────────────────────────────────────────────── */
+const API = 'https://api.allorigins.win/raw?url=https://api-web.nhle.com/v1';
+// Direct (works from localhost or if NHL API ever adds CORS headers):
+// const API = 'https://api-web.nhle.com/v1';
+
+/* ─────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────── */
+const S = {
+  view: 'home',
+  season: '20242025',
+  skaters: { rows: [], loading: false, error: null,
+             sort: { col: 'pts', dir: 'desc' },
+             search: '', pos: 'all', team: 'all' },
+  goalies: { rows: [], loading: false, error: null,
+             sort: { col: 'w', dir: 'desc' }, search: '' },
+  teams:   { rows: [], loading: false, error: null,
+             sort: { col: 'pts', dir: 'desc' }, groupBy: 'division' },
+};
+
+/* ─────────────────────────────────────────────────────────
+   UTILS
+───────────────────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const qs = sel => document.querySelector(sel);
+
+function teamLogoUrl(abbrev) {
+  return `https://assets.nhle.com/logos/nhl/svg/${abbrev}_dark.svg`;
+}
+
+async function nhlFetch(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`HTTP ${r.status} – ${path}`);
+  return r.json();
+}
+
+// Build a playerId→value map from a single-category response array
+function valueMap(arr) {
+  const m = {};
+  for (const p of (arr || [])) m[p.id] = p.value;
+  return m;
+}
+
+function sortRows(arr, col, dir) {
+  return [...arr].sort((a, b) => {
+    const av = a[col] ?? (typeof a[col] === 'string' ? '' : -Infinity);
+    const bv = b[col] ?? (typeof b[col] === 'string' ? '' : -Infinity);
+    if (typeof av === 'string') return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+}
+
+function pct1(v)  { return isFinite(v) ? (v * 100).toFixed(1) + '%' : '—'; }
+function fix3(v)  { return isFinite(v) ? Number(v).toFixed(3)       : '—'; }
+function fix2(v)  { return isFinite(v) ? Number(v).toFixed(2)       : '—'; }
+function name(p)  {
+  const f = p.firstName?.default ?? p.firstName ?? '';
+  const l = p.lastName?.default  ?? p.lastName  ?? '';
+  return `${f} ${l}`.trim();
+}
+
+/* ─────────────────────────────────────────────────────────
+   DATA LOADING
+   The NHL leaders API only returns `value` per player per
+   category — no cross-stat fields. We fetch each stat
+   separately, then merge by player id.
+───────────────────────────────────────────────────────── */
+async function loadSkaters() {
+  const st = S.skaters;
+  st.loading = true; st.error = null;
+  renderSkaters();
+
+  try {
+    const season = S.season;
+    const gt = '2';
+    const lim = 200; // large enough to cover top-100 point scorers in every stat
+
+    // Fetch all categories in parallel — the API only accepts one at a time
+    const [pts, g, a, pm, toi, pim] = await Promise.all([
+      nhlFetch(`/skater-stats-leaders/${season}/${gt}?categories=points&limit=100`),
+      nhlFetch(`/skater-stats-leaders/${season}/${gt}?categories=goals&limit=${lim}`),
+      nhlFetch(`/skater-stats-leaders/${season}/${gt}?categories=assists&limit=${lim}`),
+      nhlFetch(`/skater-stats-leaders/${season}/${gt}?categories=plusMinus&limit=${lim}`),
+      nhlFetch(`/skater-stats-leaders/${season}/${gt}?categories=toi&limit=${lim}`),
+      nhlFetch(`/skater-stats-leaders/${season}/${gt}?categories=penaltyMins&limit=${lim}`),
+    ]);
+
+    // Build lookup maps for secondary stats
+    const gMap   = valueMap(g.goals);
+    const aMap   = valueMap(a.assists);
+    const pmMap  = valueMap(pm.plusMinus);
+    const toiMap = valueMap(toi.toi);
+    const pimMap = valueMap(pim.penaltyMins);
+
+    // Log first raw player so data structure is visible in DevTools
+    console.log('[HockeyTables] skater raw (first):', pts.points?.[0]);
+
+    st.rows = (pts.points || []).map((p, i) => ({
+      rank:    i + 1,
+      id:      p.id,
+      n:       name(p),
+      hs:      p.headshot || `https://assets.nhle.com/mugs/nhl/${season}/${p.teamAbbrev}/${p.id}.png`,
+      team:    p.teamAbbrev || '',
+      logo:    p.teamLogo   || teamLogoUrl(p.teamAbbrev),
+      pos:     p.position   || '',
+      pts:     p.value      ?? 0,       // value IS the points total for this category
+      g:       gMap[p.id]   ?? 0,
+      a:       aMap[p.id]   ?? 0,
+      pm:      pmMap[p.id]  ?? 0,
+      toi:     toiMap[p.id] ?? 0,      // seconds; convert to mm:ss for display
+      pim:     pimMap[p.id] ?? 0,
+    }));
+
+  } catch (e) {
+    console.error('[HockeyTables] skater load error:', e);
+    st.error = e.message;
+  }
+
+  st.loading = false;
+  renderSkaters();
+}
+
+async function loadGoalies() {
+  const st = S.goalies;
+  st.loading = true; st.error = null;
+  renderGoalies();
+
+  try {
+    const season = S.season;
+    const gt = '2';
+
+    const [wins, sv, gaa, so] = await Promise.all([
+      nhlFetch(`/goalie-stats-leaders/${season}/${gt}?categories=wins&limit=50`),
+      nhlFetch(`/goalie-stats-leaders/${season}/${gt}?categories=savePctg&limit=100`),
+      nhlFetch(`/goalie-stats-leaders/${season}/${gt}?categories=goalsAgainstAverage&limit=100`),
+      nhlFetch(`/goalie-stats-leaders/${season}/${gt}?categories=shutouts&limit=100`),
+    ]);
+
+    const svMap  = valueMap(sv.savePctg);
+    const gaaMap = valueMap(gaa.goalsAgainstAverage);
+    const soMap  = valueMap(so.shutouts);
+
+    console.log('[HockeyTables] goalie raw (first):', wins.wins?.[0]);
+
+    st.rows = (wins.wins || []).map((g, i) => ({
+      rank: i + 1,
+      id:   g.id,
+      n:    name(g),
+      hs:   g.headshot || '',
+      team: g.teamAbbrev || '',
+      logo: g.teamLogo  || teamLogoUrl(g.teamAbbrev),
+      w:    g.value      ?? 0,
+      sv:   svMap[g.id]  ?? 0,
+      gaa:  gaaMap[g.id] ?? 0,
+      so:   soMap[g.id]  ?? 0,
+    }));
+
+  } catch (e) {
+    console.error('[HockeyTables] goalie load error:', e);
+    st.error = e.message;
+  }
+
+  st.loading = false;
+  renderGoalies();
+}
+
+async function loadTeams() {
+  const st = S.teams;
+  st.loading = true; st.error = null;
+  renderTeams();
+
+  try {
+    const data = await nhlFetch('/standings/now');
+    console.log('[HockeyTables] team raw (first):', data.standings?.[0]);
+
+    st.rows = (data.standings || []).map(t => ({
+      name:   t.teamName?.default        ?? '',
+      abbrev: t.teamAbbrev?.default      ?? '',
+      logo:   t.teamLogo                  || '',
+      conf:   t.conferenceName           ?? '',
+      div:    t.divisionName             ?? '',
+      gp:     t.gamesPlayed              ?? 0,
+      w:      t.wins                     ?? 0,
+      l:      t.losses                   ?? 0,
+      ot:     t.otLosses                 ?? 0,
+      pts:    t.points                   ?? 0,
+      gf:     t.goalFor                  ?? 0,
+      ga:     t.goalAgainst              ?? 0,
+      diff:   t.goalDifferential         ?? 0,
+      row:    t.regulationPlusOtWins     ?? t.regulationAndOtWins ?? 0,
+      streak: (t.streakCode ?? '') + (t.streakCount ?? ''),
+    }));
+
+  } catch (e) {
+    console.error('[HockeyTables] teams load error:', e);
+    st.error = e.message;
+  }
+
+  st.loading = false;
+  renderTeams();
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER HELPERS
+───────────────────────────────────────────────────────── */
+const LOADING_HTML = `
+  <div class="loading-wrap">
+    <div class="spinner"></div>
+    <span>Loading…</span>
+  </div>`;
+
+function errorHtml(msg) {
+  return `<div class="error-box">
+    <strong>Failed to load data</strong>
+    <p>${escHtml(msg)}</p>
+    <p>Check the browser console for details. If opening as <code>file://</code>,
+       try: <code>python -m http.server</code> then open <code>http://localhost:8000</code>.</p>
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function thSort(label, col, state, view) {
+  const active = state.sort.col === col;
+  const icon   = active ? (state.sort.dir === 'desc' ? '↓' : '↑') : '⇅';
+  return `<th class="${active ? 'sorted' : ''}"
+             onclick="handleSort('${view}','${col}')">
+    ${label}<span class="sort-icon">${icon}</span>
+  </th>`;
+}
+
+// Format TOI: value is seconds (integer) from the API's toi category
+function fmtToi(sec) {
+  if (!sec) return '—';
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function pmCell(v) {
+  if (v > 0) return `<span class="green">+${v}</span>`;
+  if (v < 0) return `<span class="red">${v}</span>`;
+  return `<span class="dim">0</span>`;
+}
+
+function teamCell(logo, abbrev) {
+  return `<div class="team-cell">
+    <img class="team-logo" src="${escHtml(logo)}" alt="${escHtml(abbrev)}" onerror="this.style.display='none'">
+    <span class="dim">${escHtml(abbrev)}</span>
+  </div>`;
+}
+
+function playerCell(id, hs, n) {
+  return `<div class="player-cell">
+    <img class="headshot" src="${escHtml(hs)}" alt="" onerror="this.style.display='none'">
+    <a class="player-link" href="#" onclick="showPlayerPlaceholder(${id},'${escHtml(n)}');return false">${escHtml(n)}</a>
+  </div>`;
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER: HOME
+───────────────────────────────────────────────────────── */
+function renderHome() {
+  $('view-home').innerHTML = `
+    <div class="home-wrap">
+      <div style="text-align:center">
+        <h1 class="home-title">HockeyTables</h1>
+        <p class="home-sub">Real-time NHL statistics — sortable, filterable, fast.</p>
+      </div>
+      <div class="home-cards">
+        <button class="home-card" onclick="switchView('skaters')">
+          <div class="home-card-icon">🏒</div>
+          <div class="home-card-title">Skater Stats</div>
+          <div class="home-card-desc">Points, goals, assists, +/−, TOI and more.</div>
+        </button>
+        <button class="home-card" onclick="switchView('goalies')">
+          <div class="home-card-icon">🥅</div>
+          <div class="home-card-title">Goalie Stats</div>
+          <div class="home-card-desc">Wins, GAA, save percentage, shutouts.</div>
+        </button>
+        <button class="home-card" onclick="switchView('teams')">
+          <div class="home-card-icon">🏆</div>
+          <div class="home-card-title">Team Standings</div>
+          <div class="home-card-desc">Conference & division standings with goal diff.</div>
+        </button>
+      </div>
+      <p style="font-size:12px;color:var(--muted)">
+        Data sourced from the official NHL API · Updates on page load
+      </p>
+    </div>`;
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER: SKATERS
+───────────────────────────────────────────────────────── */
+function renderSkaters() {
+  const st  = S.skaters;
+  const el  = $('view-skaters');
+  const teams = ['all', ...new Set(st.rows.map(p => p.team).filter(Boolean).sort())];
+
+  let html = `
+    <div class="page-header">
+      <h1 class="page-title">Skater Stats</h1>
+    </div>
+    <div class="filter-bar">
+      <input type="search" placeholder="Search player…"
+             value="${escHtml(st.search)}"
+             oninput="S.skaters.search=this.value;renderSkaters()">
+      <select onchange="S.skaters.pos=this.value;renderSkaters()">
+        <option value="all"${st.pos==='all'?' selected':''}>All Positions</option>
+        <option value="C" ${st.pos==='C' ?' selected':''}>C</option>
+        <option value="L" ${st.pos==='L' ?' selected':''}>LW</option>
+        <option value="R" ${st.pos==='R' ?' selected':''}>RW</option>
+        <option value="D" ${st.pos==='D' ?' selected':''}>D</option>
+      </select>
+      <select onchange="S.skaters.team=this.value;renderSkaters()">
+        ${teams.map(t=>`<option value="${t}"${st.team===t?' selected':''}>${t==='all'?'All Teams':t}</option>`).join('')}
+      </select>
+    </div>`;
+
+  if (st.loading) { el.innerHTML = html + LOADING_HTML; return; }
+  if (st.error)   { el.innerHTML = html + errorHtml(st.error); return; }
+
+  // Filter
+  let rows = st.rows;
+  if (st.search) {
+    const q = st.search.toLowerCase();
+    rows = rows.filter(p => p.n.toLowerCase().includes(q));
+  }
+  if (st.pos  !== 'all') rows = rows.filter(p => p.pos  === st.pos);
+  if (st.team !== 'all') rows = rows.filter(p => p.team === st.team);
+
+  rows = sortRows(rows, st.sort.col, st.sort.dir);
+  const s = st.sort;
+
+  const tbody = rows.map((p,i) => `<tr>
+    <td class="dim">${i+1}</td>
+    <td>${playerCell(p.id, p.hs, p.n)}</td>
+    <td>${teamCell(p.logo, p.team)}</td>
+    <td class="dim">${escHtml(p.pos)}</td>
+    <td class="pts-val">${p.pts}</td>
+    <td class="g-val">${p.g}</td>
+    <td>${p.a}</td>
+    <td>${pmCell(p.pm)}</td>
+    <td class="dim">${p.pim}</td>
+    <td class="dim">${fmtToi(p.toi)}</td>
+  </tr>`).join('');
+
+  html += `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:36px">#</th>
+          ${thSort('Player',  'n',   s, 'skaters')}
+          ${thSort('Team',    'team',s, 'skaters')}
+          ${thSort('Pos',     'pos', s, 'skaters')}
+          ${thSort('PTS',     'pts', s, 'skaters')}
+          ${thSort('G',       'g',   s, 'skaters')}
+          ${thSort('A',       'a',   s, 'skaters')}
+          ${thSort('+/−',     'pm',  s, 'skaters')}
+          ${thSort('PIM',     'pim', s, 'skaters')}
+          ${thSort('TOI/G',   'toi', s, 'skaters')}
+        </tr></thead>
+        <tbody>
+          ${tbody || '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted)">No results</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <p class="row-count">${rows.length} / ${st.rows.length} skaters</p>`;
+
+  el.innerHTML = html;
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER: GOALIES
+───────────────────────────────────────────────────────── */
+function renderGoalies() {
+  const st = S.goalies;
+  const el = $('view-goalies');
+
+  let html = `
+    <div class="page-header">
+      <h1 class="page-title">Goalie Stats</h1>
+    </div>
+    <div class="filter-bar">
+      <input type="search" placeholder="Search goalie…"
+             value="${escHtml(st.search)}"
+             oninput="S.goalies.search=this.value;renderGoalies()">
+    </div>`;
+
+  if (st.loading) { el.innerHTML = html + LOADING_HTML; return; }
+  if (st.error)   { el.innerHTML = html + errorHtml(st.error); return; }
+
+  let rows = st.rows;
+  if (st.search) {
+    const q = st.search.toLowerCase();
+    rows = rows.filter(g => g.n.toLowerCase().includes(q));
+  }
+  rows = sortRows(rows, st.sort.col, st.sort.dir);
+  const s = st.sort;
+
+  const tbody = rows.map((g,i) => `<tr>
+    <td class="dim">${i+1}</td>
+    <td>${playerCell(g.id, g.hs, g.n)}</td>
+    <td>${teamCell(g.logo, g.team)}</td>
+    <td class="green" style="font-weight:700">${g.w}</td>
+    <td style="font-weight:600">${fix2(g.gaa)}</td>
+    <td class="green" style="font-weight:600">${fix3(g.sv)}</td>
+    <td>${g.so}</td>
+  </tr>`).join('');
+
+  html += `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:36px">#</th>
+          ${thSort('Goalie', 'n',   s, 'goalies')}
+          ${thSort('Team',   'team',s, 'goalies')}
+          ${thSort('W',      'w',   s, 'goalies')}
+          ${thSort('GAA',    'gaa', s, 'goalies')}
+          ${thSort('SV%',    'sv',  s, 'goalies')}
+          ${thSort('SO',     'so',  s, 'goalies')}
+        </tr></thead>
+        <tbody>
+          ${tbody || '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No results</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <p class="row-count">${rows.length} / ${st.rows.length} goalies</p>`;
+
+  el.innerHTML = html;
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER: TEAMS
+───────────────────────────────────────────────────────── */
+function renderTeams() {
+  const st = S.teams;
+  const el = $('view-teams');
+
+  const gb = st.groupBy;
+  let html = `
+    <div class="page-header">
+      <h1 class="page-title">Team Standings</h1>
+      <div class="toggle-group">
+        <button class="toggle-btn ${gb==='none'      ?'active':''}" onclick="S.teams.groupBy='none';      renderTeams()">League</button>
+        <button class="toggle-btn ${gb==='conference'?'active':''}" onclick="S.teams.groupBy='conference';renderTeams()">Conference</button>
+        <button class="toggle-btn ${gb==='division'  ?'active':''}" onclick="S.teams.groupBy='division';  renderTeams()">Division</button>
+      </div>
+    </div>`;
+
+  if (st.loading) { el.innerHTML = html + LOADING_HTML; return; }
+  if (st.error)   { el.innerHTML = html + errorHtml(st.error); return; }
+
+  const s = st.sort;
+
+  function teamsTable(rows) {
+    const sorted = sortRows(rows, s.col, s.dir);
+    const tbody = sorted.map(t => `<tr>
+      <td>
+        <div class="team-cell">
+          <img class="team-logo" src="${escHtml(t.logo)}" alt="${escHtml(t.abbrev)}" onerror="this.style.display='none'">
+          <span style="font-weight:500">${escHtml(t.name)}</span>
+          <span class="dim" style="font-size:11px">(${escHtml(t.abbrev)})</span>
+        </div>
+      </td>
+      <td>${t.gp}</td>
+      <td class="green">${t.w}</td>
+      <td class="red">${t.l}</td>
+      <td>${t.ot}</td>
+      <td class="pts-val">${t.pts}</td>
+      <td>${t.gf}</td>
+      <td>${t.ga}</td>
+      <td>${pmCell(t.diff)}</td>
+      <td>${t.row}</td>
+      <td>${streakCell(t.streak)}</td>
+    </tr>`).join('');
+
+    return `<div class="table-wrap"><table>
+      <thead><tr>
+        ${thSort('Team', 'name', s, 'teams')}
+        ${thSort('GP',   'gp',   s, 'teams')}
+        ${thSort('W',    'w',    s, 'teams')}
+        ${thSort('L',    'l',    s, 'teams')}
+        ${thSort('OT',   'ot',   s, 'teams')}
+        ${thSort('PTS',  'pts',  s, 'teams')}
+        ${thSort('GF',   'gf',   s, 'teams')}
+        ${thSort('GA',   'ga',   s, 'teams')}
+        ${thSort('DIFF', 'diff', s, 'teams')}
+        ${thSort('ROW',  'row',  s, 'teams')}
+        <th>STK</th>
+      </tr></thead>
+      <tbody>${tbody}</tbody>
+    </table></div>`;
+  }
+
+  if (gb === 'none') {
+    html += teamsTable(st.rows);
+    html += `<p class="row-count">${st.rows.length} teams</p>`;
+  } else {
+    const groups = groupBy(st.rows, gb === 'conference' ? 'conf' : 'div');
+    html += groups.map(({label, rows}) =>
+      `<div class="section-heading">${escHtml(label)}</div>${teamsTable(rows)}`
+    ).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+function streakCell(s) {
+  if (!s) return '<span class="dim">—</span>';
+  if (s.startsWith('W')) return `<span class="green">${escHtml(s)}</span>`;
+  if (s.startsWith('L')) return `<span class="red">${escHtml(s)}</span>`;
+  return `<span class="dim">${escHtml(s)}</span>`;
+}
+
+function groupBy(arr, key) {
+  const map = new Map();
+  for (const item of arr) {
+    const k = item[key] || 'Unknown';
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(item);
+  }
+  return [...map.entries()]
+    .sort(([a],[b]) => a.localeCompare(b))
+    .map(([label, rows]) => ({ label, rows }));
+}
+
+/* ─────────────────────────────────────────────────────────
+   PLAYER PLACEHOLDER
+───────────────────────────────────────────────────────── */
+function showPlayerPlaceholder(id, n) {
+  const prev = S.view;
+  // Simple inline overlay rather than a new route
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.75);
+    display:flex;align-items:center;justify-content:center;z-index:200;`;
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);
+                border-radius:12px;padding:40px;text-align:center;max-width:360px;width:90%">
+      <div style="font-size:48px;margin-bottom:12px">🏒</div>
+      <h2 style="font-size:18px;font-weight:700">${escHtml(n)}</h2>
+      <p style="color:var(--muted);margin-top:8px;font-size:13px">
+        Player detail page coming soon.<br>NHL player ID: ${id}
+      </p>
+      <button onclick="this.closest('div[style]').remove()"
+        style="margin-top:20px;padding:8px 20px;border-radius:6px;border:1px solid var(--border);
+               background:none;color:var(--text);cursor:pointer;font-size:13px">
+        Close
+      </button>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+/* ─────────────────────────────────────────────────────────
+   SORT HANDLER
+───────────────────────────────────────────────────────── */
+function handleSort(view, col) {
+  const s = S[view].sort;
+  s.dir = s.col === col ? (s.dir === 'desc' ? 'asc' : 'desc') : 'desc';
+  s.col = col;
+  if (view === 'skaters') renderSkaters();
+  else if (view === 'goalies') renderGoalies();
+  else if (view === 'teams') renderTeams();
+}
+
+/* ─────────────────────────────────────────────────────────
+   VIEW SWITCHING
+───────────────────────────────────────────────────────── */
+function switchView(view) {
+  S.view = view;
+
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view));
+
+  document.querySelectorAll('.view').forEach(v =>
+    v.classList.toggle('active', v.id === `view-${view}`));
+
+  // Lazy-load data the first time each tab is opened
+  if (view === 'skaters' && !S.skaters.rows.length && !S.skaters.loading) loadSkaters();
+  if (view === 'goalies' && !S.goalies.rows.length && !S.goalies.loading) loadGoalies();
+  if (view === 'teams'   && !S.teams.rows.length   && !S.teams.loading)   loadTeams();
+}
+
+/* ─────────────────────────────────────────────────────────
+   SEASON CHANGE
+───────────────────────────────────────────────────────── */
+$('season-select').addEventListener('change', function() {
+  S.season = this.value;
+  S.skaters.rows = []; S.goalies.rows = [];
+  if (S.view === 'skaters') loadSkaters();
+  else if (S.view === 'goalies') loadGoalies();
+  // standings are always /now, season selector doesn't affect them
+});
+
+/* ─────────────────────────────────────────────────────────
+   NAV BUTTONS
+───────────────────────────────────────────────────────── */
+document.querySelectorAll('.nav-btn').forEach(b =>
+  b.addEventListener('click', () => switchView(b.dataset.view)));
+
+/* ─────────────────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────────────────── */
+renderHome();
+switchView('home');
+</script>
+</body>
+</html>
