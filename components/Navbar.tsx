@@ -2,15 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SEASONS } from '@/lib/nhl-api';
 import GlobalSearch from './GlobalSearch';
-
-type Season = string;
-
-interface NavbarProps {
-  season: Season;
-  onSeasonChange: (s: Season) => void;
-}
 
 const NAV_LINKS = [
   { href: '/skaters',      label: 'Skaters'      },
@@ -19,7 +11,7 @@ const NAV_LINKS = [
   { href: '/match-center', label: 'Match Center' },
 ];
 
-export default function Navbar({ season, onSeasonChange }: NavbarProps) {
+export default function Navbar() {
   const pathname = usePathname();
 
   return (
@@ -52,26 +44,9 @@ export default function Navbar({ season, onSeasonChange }: NavbarProps) {
           ))}
         </div>
 
-        {/* Global search — grows to fill middle space */}
+        {/* Global search */}
         <div className="flex-1">
           <GlobalSearch variant="navbar" />
-        </div>
-
-        {/* Season selector */}
-        <div className="flex shrink-0 items-center gap-2">
-          <label htmlFor="season-select" className="hidden text-sm text-muted lg:block">
-            Season
-          </label>
-          <select
-            id="season-select"
-            value={season}
-            onChange={(e) => onSeasonChange(e.target.value as Season)}
-            className="rounded border border-border bg-base px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-accent"
-          >
-            {SEASONS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
         </div>
       </div>
     </nav>

@@ -12,9 +12,8 @@ interface Props {
 }
 
 const SEASONS = [
+  { label: '25-26', value: '20252026' },
   { label: '24-25', value: '20242025' },
-  { label: '23-24', value: '20232024' },
-  { label: '22-23', value: '20222023' },
 ];
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -28,7 +27,7 @@ type P1Filter = 'all' | 'win' | 'loss' | 'tie';
 type GameType = 'all' | 'reg' | 'ot';
 
 export default function TeamStatsPanel({ abbrev, name, logo, rankByAbbrev }: Props) {
-  const [season,   setSeason]   = useState('20242025');
+  const [season,   setSeason]   = useState('20252026');
   const [venue,    setVenue]    = useState<Venue>('all');
   const [topN,     setTopN]     = useState(0);
   const [lastN,    setLastN]    = useState(0);

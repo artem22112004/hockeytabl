@@ -7,6 +7,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 
 import StatsTable from '@/components/StatsTable';
 import PlayerModal from '@/components/PlayerModal';
+import SeasonSelector from '@/components/SeasonSelector';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
 
@@ -202,7 +203,10 @@ export default function SkatersPage() {
       )}
 
       <div className="flex flex-col gap-5">
-        <h1 className="text-2xl font-bold text-white">Skater Stats</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-white">Skater Stats</h1>
+          <SeasonSelector />
+        </div>
 
         {isLoading && <LoadingSpinner />}
         {error     && <ErrorMsg />}

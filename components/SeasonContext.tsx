@@ -10,12 +10,12 @@ interface SeasonContextValue {
 }
 
 const SeasonContext = createContext<SeasonContextValue>({
-  season: '20242025',
+  season: '20252026',
   setSeason: () => {},
 });
 
 export function SeasonProvider({ children }: { children: React.ReactNode }) {
-  const [season, setSeason] = useState<Season>('20242025');
+  const [season, setSeason] = useState<Season>('20252026');
   return (
     <SeasonContext.Provider value={{ season, setSeason }}>
       {children}

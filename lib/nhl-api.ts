@@ -5,7 +5,6 @@ export function teamLogoUrl(abbrev: string): string {
 }
 
 export const SEASONS: { label: string; value: Season }[] = [
+  { label: '2025-26', value: '20252026' },
   { label: '2024-25', value: '20242025' },
-  { label: '2023-24', value: '20232024' },
-  { label: '2022-23', value: '20222023' },
 ];

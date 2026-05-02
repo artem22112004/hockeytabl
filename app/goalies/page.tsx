@@ -6,6 +6,7 @@ import Image from 'next/image';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import StatsTable from '@/components/StatsTable';
+import SeasonSelector from '@/components/SeasonSelector';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
 
@@ -95,7 +96,10 @@ export default function GoaliesPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-bold text-white">Goalie Stats</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-white">Goalie Stats</h1>
+        <SeasonSelector />
+      </div>
 
       {isLoading && <LoadingSpinner />}
       {error     && <ErrorMsg />}

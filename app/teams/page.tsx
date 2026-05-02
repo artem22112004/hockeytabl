@@ -7,6 +7,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 
 import StatsTable from '@/components/StatsTable';
 import TeamModal from '@/components/TeamModal';
+import SeasonSelector from '@/components/SeasonSelector';
 import { teamLogoUrl } from '@/lib/nhl-api';
 import { useSeason } from '@/components/SeasonContext';
 
@@ -166,6 +167,8 @@ function PageShell({ groupBy, setGroupBy, children }: {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">Team Standings</h1>
+        <div className="flex items-center gap-3">
+        <SeasonSelector />
         <div className="flex items-center gap-2 rounded-lg border border-border bg-surface p-1">
           {(['none', 'conference', 'division'] as GroupBy[]).map((g) => (
             <button key={g} onClick={() => setGroupBy(g)}
@@ -175,6 +178,7 @@ function PageShell({ groupBy, setGroupBy, children }: {
               {g === 'none' ? 'League' : g === 'conference' ? 'Conference' : 'Division'}
             </button>
           ))}
+        </div>
         </div>
       </div>
       {children}
