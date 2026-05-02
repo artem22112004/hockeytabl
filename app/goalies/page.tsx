@@ -8,39 +8,22 @@ import type { ColumnDef } from '@tanstack/react-table';
 import StatsTable from '@/components/StatsTable';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
-interface NormalizedGoalie {
-  id: number;
-  firstName: { default: string };
-  lastName: { default: string };
-  headshot: string;
-  teamAbbrev: string;
-  teamName: { default: string };
-  teamLogo: string;
-  w: number;
-  savePctg: number;
-  gaa: number;
-  shutouts: number;
-}
-
-interface NormalizedGoaliesResponse {
-  goalies: NormalizedGoalie[];
-}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-type Row = NormalizedGoalie & { _rank: number };
+type Row = any;
 
 export default function GoaliesPage() {
   const { season } = useSeason();
 
-  const { data, error, isLoading } = useSWR<NormalizedGoaliesResponse>(
+  const { data, error, isLoading } = useSWR<any>(
     `/api/goalies?season=${season}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
-  const goalies = useMemo<Row[]>(
-    () => (data?.goalies ?? []).map((g, i) => ({ ...g, _rank: i + 1 })),
+  const goalies = useMemo<any[]>(
+    () => (data?.goalies ?? []).map((g: any, i: number) => ({ ...g, _rank: i + 1 })),
     [data]
   );
 

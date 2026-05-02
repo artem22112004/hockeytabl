@@ -1,17 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-interface NHLLeaderPlayer {
-  id: number;
-  firstName: { default: string };
-  lastName: { default: string };
-  headshot: string;
-  teamAbbrev: string;
-  teamName: { default: string };
-  teamLogo: string;
-  position: string;
-  value: number;
-}
-
 const NHL_BASE = 'https://api-web.nhle.com/v1';
 
 async function fetchCategory(
@@ -19,17 +7,17 @@ async function fetchCategory(
   gameType: string,
   category: string,
   limit: number
-): Promise<NHLLeaderPlayer[]> {
+): Promise<any[]> {
   const res = await fetch(
     `${NHL_BASE}/goalie-stats-leaders/${season}/${gameType}?categories=${category}&limit=${limit}`,
     { next: { revalidate: 300 } }
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return (data[category] ?? []) as NHLLeaderPlayer[];
+  return (data[category] ?? []) as any[];
 }
 
-function toMap(arr: NHLLeaderPlayer[]): Map<number, number> {
+function toMap(arr: any[]): Map<number, number> {
   return new Map(arr.map((p) => [p.id, p.value]));
 }
 

@@ -9,26 +9,6 @@ import StatsTable from '@/components/StatsTable';
 import PlayerModal from '@/components/PlayerModal';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
-interface NormalizedSkater {
-  id: number;
-  firstName: { default: string };
-  lastName: { default: string };
-  headshot: string;
-  teamAbbrev: string;
-  teamName: { default: string };
-  teamLogo: string;
-  position: string;
-  pts: number;
-  g: number;
-  a: number;
-  plusMinus: number;
-  pim: number;
-  toiSeconds: number;
-}
-
-interface NormalizedSkatersResponse {
-  skaters: NormalizedSkater[];
-}
 
 const POSITIONS = ['All', 'C', 'L', 'R', 'D'] as const;
 
@@ -48,39 +28,39 @@ interface SelectedPlayer {
   teamAbbrev: string;
 }
 
+type Row = any;
+
 export default function SkatersPage() {
   const { season } = useSeason();
-  const [posFilter, setPosFilter]       = useState<string>('All');
-  const [teamFilter, setTeamFilter]     = useState<string>('All');
-  const [selected, setSelected]         = useState<SelectedPlayer | null>(null);
+  const [posFilter, setPosFilter]   = useState<string>('All');
+  const [teamFilter, setTeamFilter] = useState<string>('All');
+  const [selected, setSelected]     = useState<SelectedPlayer | null>(null);
 
-  const { data, error, isLoading } = useSWR<NormalizedSkatersResponse>(
+  const { data, error, isLoading } = useSWR<any>(
     `/api/skaters?season=${season}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
-  const players = useMemo<(NormalizedSkater & { _rank: number })[]>(
-    () => (data?.skaters ?? []).map((p, i) => ({ ...p, _rank: i + 1 })),
+  const players = useMemo<any[]>(
+    () => (data?.skaters ?? []).map((p: any, i: number) => ({ ...p, _rank: i + 1 })),
     [data]
   );
 
   const teams = useMemo(
-    () => ['All', ...Array.from(new Set(players.map((p) => p.teamAbbrev))).sort()],
+    () => ['All', ...Array.from(new Set(players.map((p: any) => p.teamAbbrev))).sort()],
     [players]
   );
 
   const filtered = useMemo(
     () =>
       players.filter(
-        (p) =>
+        (p: any) =>
           (posFilter  === 'All' || p.position   === posFilter) &&
           (teamFilter === 'All' || p.teamAbbrev === teamFilter)
       ),
     [players, posFilter, teamFilter]
   );
-
-  type Row = NormalizedSkater & { _rank: number };
 
   const columns = useMemo<ColumnDef<Row, unknown>[]>(
     () => [
@@ -202,7 +182,7 @@ export default function SkatersPage() {
         aria-label="Filter by team"
       >
         {teams.map((t) => (
-          <option key={t} value={t}>{t === 'All' ? 'All Teams' : t}</option>
+          <option key={t as string} value={t as string}>{t === 'All' ? 'All Teams' : t as string}</option>
         ))}
       </select>
     </>

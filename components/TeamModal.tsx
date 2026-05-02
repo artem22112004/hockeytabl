@@ -3,20 +3,6 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
-interface TeamScheduleGame {
-  gameId: number;
-  gameDate: string;
-  homeOrAway: string;
-  oppAbbrev: string;
-  oppLogo: string;
-  gf: number;
-  ga: number;
-  result: string;
-}
-
-interface TeamScheduleResponse {
-  games: TeamScheduleGame[];
-}
 
 interface Props {
   abbrev: string;
@@ -31,7 +17,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 function resultStyle(r: string) {
   if (r.startsWith('W')) return 'text-green-400 font-bold';
   if (r === 'L')         return 'text-red-400 font-semibold';
-  return 'text-yellow-400 font-semibold'; // OT / SO
+  return 'text-yellow-400 font-semibold';
 }
 
 export default function TeamModal({ abbrev, teamName, teamLogo, season, onClose }: Props) {
@@ -46,13 +32,13 @@ export default function TeamModal({ abbrev, teamName, teamLogo, season, onClose 
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const { data, error, isLoading } = useSWR<TeamScheduleResponse>(
+  const { data, error, isLoading } = useSWR<any>(
     `/api/team/${abbrev}/schedule?season=${season}`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  const games: TeamScheduleGame[] = data?.games ?? [];
+  const games: any[] = data?.games ?? [];
 
   return (
     <div
@@ -61,7 +47,6 @@ export default function TeamModal({ abbrev, teamName, teamLogo, season, onClose 
     >
       <div className="relative w-full max-w-2xl rounded-xl border border-border bg-surface shadow-2xl">
 
-        {/* Header */}
         <div className="flex items-center gap-3 border-b border-border px-5 py-4">
           <Image src={teamLogo} alt={abbrev} width={44} height={44} unoptimized />
           <div className="flex-1">
@@ -77,7 +62,6 @@ export default function TeamModal({ abbrev, teamName, teamLogo, season, onClose 
           </button>
         </div>
 
-        {/* Body */}
         <div className="max-h-[60vh] overflow-y-auto p-5">
           {isLoading && (
             <div className="flex items-center justify-center py-16">
@@ -106,7 +90,7 @@ export default function TeamModal({ abbrev, teamName, teamLogo, season, onClose 
                   </tr>
                 </thead>
                 <tbody>
-                  {games.map((g, i) => (
+                  {games.map((g: any, i: number) => (
                     <tr key={g.gameId}
                       className={`border-b border-border transition-colors hover:bg-hover ${i % 2 === 0 ? 'bg-base' : 'bg-surface/40'}`}
                     >

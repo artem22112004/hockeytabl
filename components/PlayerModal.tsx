@@ -3,31 +3,13 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
-interface GameLogEntry {
-  gameId: number;
-  gameDate: string;
-  homeRoadFlag: string;
-  opponentAbbrev: string;
-  goals: number;
-  assists: number;
-  points: number;
-  plusMinus: number;
-  shots: number;
-  toi: string;
-}
-
-interface GameLogResponse {
-  gameLog: GameLogEntry[];
-}
-
-type Season = string;
 
 interface Props {
   playerId: number;
   playerName: string;
   headshot: string;
   teamAbbrev: string;
-  season: Season;
+  season: string;
   onClose: () => void;
 }
 
@@ -51,37 +33,32 @@ export default function PlayerModal({
   season,
   onClose,
 }: Props) {
-  // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Lock body scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const { data, error, isLoading } = useSWR<GameLogResponse>(
+  const { data, error, isLoading } = useSWR<any>(
     `/api/player/${playerId}/game-log?season=${season}`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  const games: GameLogEntry[] = (data?.gameLog ?? []).slice(0, 10);
+  const games: any[] = (data?.gameLog ?? []).slice(0, 10);
 
   return (
-    /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Card */}
       <div className="relative w-full max-w-2xl rounded-xl border border-border bg-surface shadow-2xl">
 
-        {/* Header */}
         <div className="flex items-center gap-3 border-b border-border px-5 py-4">
           <Image
             src={headshot}
@@ -104,7 +81,6 @@ export default function PlayerModal({
           </button>
         </div>
 
-        {/* Body */}
         <div className="max-h-[60vh] overflow-y-auto p-5">
           {isLoading && (
             <div className="flex items-center justify-center py-16">
@@ -138,7 +114,7 @@ export default function PlayerModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {games.map((g, i) => (
+                  {games.map((g: any, i: number) => (
                     <tr
                       key={g.gameId}
                       className={`border-b border-border transition-colors hover:bg-hover ${

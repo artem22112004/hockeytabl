@@ -9,26 +9,6 @@ import StatsTable from '@/components/StatsTable';
 import TeamModal from '@/components/TeamModal';
 import { teamLogoUrl } from '@/lib/nhl-api';
 import { useSeason } from '@/components/SeasonContext';
-interface TeamRecord {
-  teamAbbrev: { default: string };
-  teamCommonName: { default: string };
-  teamName: { default: string };
-  conferenceName: string;
-  divisionName: string;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  otLosses: number;
-  points: number;
-  goalFor: number;
-  goalAgainst: number;
-  goalDifferential: number;
-  regulationPlusOtWins: number;
-}
-
-interface StandingsResponse {
-  standings: TeamRecord[];
-}
 
 type GroupBy = 'none' | 'conference' | 'division';
 
@@ -38,18 +18,18 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function TeamsPage() {
   const { season } = useSeason();
-  const [groupBy, setGroupBy]       = useState<GroupBy>('division');
-  const [selected, setSelected]     = useState<SelectedTeam | null>(null);
+  const [groupBy, setGroupBy]   = useState<GroupBy>('division');
+  const [selected, setSelected] = useState<SelectedTeam | null>(null);
 
-  const { data, error, isLoading } = useSWR<StandingsResponse>(
+  const { data, error, isLoading } = useSWR<any>(
     '/api/teams',
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
-  const teams: TeamRecord[] = useMemo(() => data?.standings ?? [], [data]);
+  const teams: any[] = useMemo(() => data?.standings ?? [], [data]);
 
-  const columns = useMemo<ColumnDef<TeamRecord, unknown>[]>(
+  const columns = useMemo<ColumnDef<any, unknown>[]>(
     () => [
       {
         id: 'team',
@@ -167,8 +147,8 @@ export default function TeamsPage() {
   );
 }
 
-function groupTeams(teams: TeamRecord[], by: 'conference' | 'division') {
-  const map = new Map<string, TeamRecord[]>();
+function groupTeams(teams: any[], by: 'conference' | 'division') {
+  const map = new Map<string, any[]>();
   for (const t of teams) {
     const key = by === 'conference' ? t.conferenceName : t.divisionName;
     if (!map.has(key)) map.set(key, []);

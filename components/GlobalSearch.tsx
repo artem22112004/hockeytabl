@@ -3,47 +3,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
-interface NormalizedSkaterPlayer {
-  id: number;
-  firstName: { default: string };
-  lastName: { default: string };
-  headshot: string;
-  teamAbbrev: string;
-  pts: number;
-}
-
-interface NormalizedSkatersResponse {
-  skaters: NormalizedSkaterPlayer[];
-}
-
-interface StandingsTeam {
-  teamAbbrev: { default: string };
-  teamName: { default: string };
-  placeName?: { default: string };
-  teamLogo: string;
-  points: number;
-}
-
-interface StandingsResponse {
-  standings: StandingsTeam[];
-}
-
-interface PlayerSearchResult {
-  type: 'player';
-  id: number;
-  name: string;
-  teamAbbrev: string;
-  headshot: string;
-  pts: number;
-}
-
-interface TeamSearchResult {
-  type: 'team';
-  abbrev: string;
-  name: string;
-  logo: string;
-  pts: number;
-}
 import { useSeason } from './SeasonContext';
 import PlayerModal from './PlayerModal';
 import TeamModal from './TeamModal';
@@ -57,37 +16,35 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function GlobalSearch({ variant = 'navbar' }: Props) {
   const { season } = useSeason();
-  const [query,    setQuery]    = useState('');
-  const [open,     setOpen]     = useState(false);
-  const [playerModal, setPlayerModal] = useState<PlayerSearchResult | null>(null);
-  const [teamModal,   setTeamModal]   = useState<TeamSearchResult   | null>(null);
+  const [query,       setQuery]       = useState('');
+  const [open,        setOpen]        = useState(false);
+  const [playerModal, setPlayerModal] = useState<any>(null);
+  const [teamModal,   setTeamModal]   = useState<any>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch both datasets — SWR only fires when query is non-empty, and caches afterward
-  const { data: skatersData } = useSWR<NormalizedSkatersResponse>(
+  const { data: skatersData } = useSWR<any>(
     query.length > 0 ? `/api/skaters?season=${season}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
-  const { data: teamsData } = useSWR<StandingsResponse>(
+  const { data: teamsData } = useSWR<any>(
     query.length > 0 ? '/api/teams' : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
-  // Filter results
-  const playerResults = useMemo<PlayerSearchResult[]>(() => {
+  const playerResults = useMemo<any[]>(() => {
     if (!query || !skatersData?.skaters) return [];
     const q = query.toLowerCase();
     return skatersData.skaters
-      .filter((p) => {
+      .filter((p: any) => {
         const name = `${p.firstName.default} ${p.lastName.default}`.toLowerCase();
         return name.includes(q) || p.teamAbbrev.toLowerCase().includes(q);
       })
       .slice(0, 5)
-      .map((p) => ({
-        type: 'player',
+      .map((p: any) => ({
+        type:       'player',
         id:         p.id,
         name:       `${p.firstName.default} ${p.lastName.default}`,
         teamAbbrev: p.teamAbbrev,
@@ -96,18 +53,18 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
       }));
   }, [query, skatersData]);
 
-  const teamResults = useMemo<TeamSearchResult[]>(() => {
+  const teamResults = useMemo<any[]>(() => {
     if (!query || !teamsData?.standings) return [];
     const q = query.toLowerCase();
     return teamsData.standings
-      .filter((t) => {
+      .filter((t: any) => {
         const name   = t.teamName.default.toLowerCase();
         const abbrev = t.teamAbbrev.default.toLowerCase();
         const city   = t.placeName?.default?.toLowerCase() ?? '';
         return name.includes(q) || abbrev.includes(q) || city.includes(q);
       })
       .slice(0, 5)
-      .map((t) => ({
+      .map((t: any) => ({
         type:   'team',
         abbrev: t.teamAbbrev.default,
         name:   t.teamName.default,
@@ -118,7 +75,6 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
 
   const hasResults = playerResults.length > 0 || teamResults.length > 0;
 
-  // Close dropdown on outside click
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -129,7 +85,6 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, []);
 
-  // Close dropdown on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
@@ -140,13 +95,13 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
 
   const isHero = variant === 'hero';
 
-  function selectPlayer(p: PlayerSearchResult) {
+  function selectPlayer(p: any) {
     setPlayerModal(p);
     setOpen(false);
     setQuery('');
   }
 
-  function selectTeam(t: TeamSearchResult) {
+  function selectTeam(t: any) {
     setTeamModal(t);
     setOpen(false);
     setQuery('');
@@ -156,7 +111,6 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
     <>
       <div ref={containerRef} className={`relative ${isHero ? 'w-full max-w-lg' : 'flex-1 max-w-xs'}`}>
         <div className="relative">
-          {/* Search icon */}
           <svg
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
             width="14" height="14" viewBox="0 0 16 16" fill="none"
@@ -177,9 +131,8 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
           />
         </div>
 
-        {/* Dropdown */}
         {open && query && hasResults && (
-          <div className={`absolute left-0 right-0 mt-1.5 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl ${isHero ? 'top-full' : 'top-full'}`}
+          <div className="absolute left-0 right-0 top-full mt-1.5 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
                style={{ zIndex: 9999 }}>
 
             {playerResults.length > 0 && (
@@ -187,7 +140,7 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
                 <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted">
                   Players
                 </p>
-                {playerResults.map((p) => (
+                {playerResults.map((p: any) => (
                   <button
                     key={p.id}
                     onClick={() => selectPlayer(p)}
@@ -210,7 +163,7 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
                 <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted">
                   Teams
                 </p>
-                {teamResults.map((t) => (
+                {teamResults.map((t: any) => (
                   <button
                     key={t.abbrev}
                     onClick={() => selectTeam(t)}
@@ -236,16 +189,14 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
           </div>
         )}
 
-        {/* No results hint */}
         {open && query.length > 1 && !hasResults && (
-          <div className="absolute left-0 right-0 mt-1.5 rounded-xl border border-border bg-surface px-4 py-6 text-center text-sm text-muted shadow-2xl"
+          <div className="absolute left-0 right-0 top-full mt-1.5 rounded-xl border border-border bg-surface px-4 py-6 text-center text-sm text-muted shadow-2xl"
                style={{ zIndex: 9999 }}>
             No players or teams found for &ldquo;{query}&rdquo;
           </div>
         )}
       </div>
 
-      {/* Modals rendered in a Portal so they escape the navbar stacking context */}
       {playerModal && (
         <Portal>
           <PlayerModal
