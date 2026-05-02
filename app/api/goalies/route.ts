@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { NHLLeaderPlayer } from '@/types/nhl';
+
+interface NHLLeaderPlayer {
+  id: number;
+  firstName: { default: string };
+  lastName: { default: string };
+  headshot: string;
+  teamAbbrev: string;
+  teamName: { default: string };
+  teamLogo: string;
+  position: string;
+  value: number;
+}
 
 const NHL_BASE = 'https://api-web.nhle.com/v1';
 

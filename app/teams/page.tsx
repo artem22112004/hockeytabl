@@ -9,7 +9,26 @@ import StatsTable from '@/components/StatsTable';
 import TeamModal from '@/components/TeamModal';
 import { teamLogoUrl } from '@/lib/nhl-api';
 import { useSeason } from '@/components/SeasonContext';
-import type { TeamRecord, StandingsResponse } from '@/types/nhl';
+interface TeamRecord {
+  teamAbbrev: { default: string };
+  teamCommonName: { default: string };
+  teamName: { default: string };
+  conferenceName: string;
+  divisionName: string;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  otLosses: number;
+  points: number;
+  goalFor: number;
+  goalAgainst: number;
+  goalDifferential: number;
+  regulationPlusOtWins: number;
+}
+
+interface StandingsResponse {
+  standings: TeamRecord[];
+}
 
 type GroupBy = 'none' | 'conference' | 'division';
 

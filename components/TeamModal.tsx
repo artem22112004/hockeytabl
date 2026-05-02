@@ -3,7 +3,20 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
-import type { TeamScheduleResponse, TeamScheduleGame } from '@/types/nhl';
+interface TeamScheduleGame {
+  gameId: number;
+  gameDate: string;
+  homeOrAway: string;
+  oppAbbrev: string;
+  oppLogo: string;
+  gf: number;
+  ga: number;
+  result: string;
+}
+
+interface TeamScheduleResponse {
+  games: TeamScheduleGame[];
+}
 
 interface Props {
   abbrev: string;

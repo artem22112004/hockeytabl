@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState } from 'react';
-import type { Season } from '@/types/nhl';
+
+type Season = string;
 
 interface SeasonContextValue {
   season: Season;

@@ -3,8 +3,24 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
-import type { GameLogEntry, GameLogResponse } from '@/types/nhl';
-import type { Season } from '@/types/nhl';
+interface GameLogEntry {
+  gameId: number;
+  gameDate: string;
+  homeRoadFlag: string;
+  opponentAbbrev: string;
+  goals: number;
+  assists: number;
+  points: number;
+  plusMinus: number;
+  shots: number;
+  toi: string;
+}
+
+interface GameLogResponse {
+  gameLog: GameLogEntry[];
+}
+
+type Season = string;
 
 interface Props {
   playerId: number;

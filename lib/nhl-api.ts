@@ -1,4 +1,4 @@
-import type { Season } from '@/types/nhl';
+type Season = string;
 
 export function teamLogoUrl(abbrev: string): string {
   return `https://assets.nhle.com/logos/nhl/svg/${abbrev}_dark.svg`;

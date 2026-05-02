@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SEASONS } from '@/lib/nhl-api';
-import type { Season } from '@/types/nhl';
 import GlobalSearch from './GlobalSearch';
+
+type Season = string;
 
 interface NavbarProps {
   season: Season;

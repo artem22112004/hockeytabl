@@ -8,7 +8,23 @@ import type { ColumnDef } from '@tanstack/react-table';
 import StatsTable from '@/components/StatsTable';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
-import type { NormalizedGoalie, NormalizedGoaliesResponse } from '@/types/nhl';
+interface NormalizedGoalie {
+  id: number;
+  firstName: { default: string };
+  lastName: { default: string };
+  headshot: string;
+  teamAbbrev: string;
+  teamName: { default: string };
+  teamLogo: string;
+  w: number;
+  savePctg: number;
+  gaa: number;
+  shutouts: number;
+}
+
+interface NormalizedGoaliesResponse {
+  goalies: NormalizedGoalie[];
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 

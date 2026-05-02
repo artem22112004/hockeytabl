@@ -9,7 +9,26 @@ import StatsTable from '@/components/StatsTable';
 import PlayerModal from '@/components/PlayerModal';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
-import type { NormalizedSkater, NormalizedSkatersResponse } from '@/types/nhl';
+interface NormalizedSkater {
+  id: number;
+  firstName: { default: string };
+  lastName: { default: string };
+  headshot: string;
+  teamAbbrev: string;
+  teamName: { default: string };
+  teamLogo: string;
+  position: string;
+  pts: number;
+  g: number;
+  a: number;
+  plusMinus: number;
+  pim: number;
+  toiSeconds: number;
+}
+
+interface NormalizedSkatersResponse {
+  skaters: NormalizedSkater[];
+}
 
 const POSITIONS = ['All', 'C', 'L', 'R', 'D'] as const;
 

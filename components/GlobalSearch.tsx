@@ -3,12 +3,47 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
-import type {
-  NormalizedSkatersResponse,
-  StandingsResponse,
-  PlayerSearchResult,
-  TeamSearchResult,
-} from '@/types/nhl';
+interface NormalizedSkaterPlayer {
+  id: number;
+  firstName: { default: string };
+  lastName: { default: string };
+  headshot: string;
+  teamAbbrev: string;
+  pts: number;
+}
+
+interface NormalizedSkatersResponse {
+  skaters: NormalizedSkaterPlayer[];
+}
+
+interface StandingsTeam {
+  teamAbbrev: { default: string };
+  teamName: { default: string };
+  placeName?: { default: string };
+  teamLogo: string;
+  points: number;
+}
+
+interface StandingsResponse {
+  standings: StandingsTeam[];
+}
+
+interface PlayerSearchResult {
+  type: 'player';
+  id: number;
+  name: string;
+  teamAbbrev: string;
+  headshot: string;
+  pts: number;
+}
+
+interface TeamSearchResult {
+  type: 'team';
+  abbrev: string;
+  name: string;
+  logo: string;
+  pts: number;
+}
 import { useSeason } from './SeasonContext';
 import PlayerModal from './PlayerModal';
 import TeamModal from './TeamModal';
