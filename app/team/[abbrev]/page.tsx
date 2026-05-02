@@ -7,6 +7,7 @@ import Link from 'next/link';
 
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
+import TotalsTable from '@/components/TotalsTable';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -65,6 +66,13 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
     { revalidateOnFocus: false }
   );
 
+  // All finished games (for totals table)
+  const { data: seasonGamesData } = useSWR(
+    `/api/team/${abbrev}/season-games?season=${season}`,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
   const standing = useMemo(
     () =>
       (standingsData?.standings ?? []).find(
@@ -76,6 +84,7 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
   const roster = rosterData ?? { forwards: [], defensemen: [], goalies: [] };
   const games: any[] = scheduleData?.games ?? [];
   const ts = statsData?.teamStats ?? null;
+  const seasonGames: any[] = seasonGamesData?.games ?? [];
 
   const gp = standing?.gamesPlayed ?? 0;
   const gfPg = gp > 0 ? ((standing?.goalFor ?? 0) / gp).toFixed(2) : null;
@@ -309,6 +318,18 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
         </div>
 
       </div>
+
+      {/* ── Totals analysis ── */}
+      {seasonGames.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
+            Totals Analysis
+            <span className="ml-2 font-normal normal-case text-muted">(Last 20 games)</span>
+          </h2>
+          <TotalsTable games={seasonGames} />
+        </div>
+      )}
+
     </div>
   );
 }
