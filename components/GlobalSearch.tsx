@@ -125,14 +125,14 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
             placeholder="Search player or team…"
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => { if (query) setOpen(true); }}
-            className={`w-full rounded-lg border border-border bg-base pl-9 pr-3 text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent ${
+            className={`w-full rounded-lg border border-border bg-base pl-9 pr-3 text-white placeholder:text-muted transition-colors focus:border-[#3b82f6]/50 focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/40 ${
               isHero ? 'py-3 text-base' : 'py-1.5 text-sm'
             }`}
           />
         </div>
 
         {open && query && hasResults && (
-          <div className="absolute left-0 right-0 top-full mt-1.5 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+          <div className="absolute left-0 right-0 top-full mt-1.5 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/40"
                style={{ zIndex: 9999 }}>
 
             {playerResults.length > 0 && (
@@ -152,7 +152,7 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
                       <p className="truncate text-sm font-medium text-white">{p.name}</p>
                       <p className="text-xs text-muted">{p.teamAbbrev}</p>
                     </div>
-                    <span className="text-xs font-bold text-accent">{p.pts} PTS</span>
+                    <span className="text-xs font-bold text-[#3b82f6]">{p.pts} PTS</span>
                   </button>
                 ))}
               </section>
@@ -175,7 +175,7 @@ export default function GlobalSearch({ variant = 'navbar' }: Props) {
                       <p className="truncate text-sm font-medium text-white">{t.name}</p>
                       <p className="text-xs text-muted">{t.abbrev}</p>
                     </div>
-                    <span className="text-xs font-bold text-accent">{t.pts} PTS</span>
+                    <span className="text-xs font-bold text-[#3b82f6]">{t.pts} PTS</span>
                   </button>
                 ))}
               </section>

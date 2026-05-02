@@ -22,14 +22,15 @@ interface StatsTableProps<T extends object> {
 
 function SortIcon({ dir }: { dir: 'asc' | 'desc' | false }) {
   if (!dir) return <span className="ml-1 text-[10px] text-muted opacity-40">⇅</span>;
-  return <span className="ml-1 text-[10px] text-accent">{dir === 'asc' ? '↑' : '↓'}</span>;
+  return (
+    <span className="ml-1 text-[10px] text-[#3b82f6]">{dir === 'asc' ? '↑' : '↓'}</span>
+  );
 }
 
-// Gold / silver / bronze left-border for the sticky first cell
 const MEDAL_BORDER = [
-  'border-l-[3px] border-l-yellow-400',  // gold
-  'border-l-[3px] border-l-slate-300',   // silver
-  'border-l-[3px] border-l-amber-700',   // bronze
+  'border-l-[3px] border-l-yellow-400',
+  'border-l-[3px] border-l-slate-300',
+  'border-l-[3px] border-l-amber-600',
 ];
 
 export default function StatsTable<T extends object>({
@@ -39,9 +40,9 @@ export default function StatsTable<T extends object>({
   globalFilterPlaceholder = 'Search…',
   filterControls,
 }: StatsTableProps<T>) {
-  const [sorting, setSorting]           = useState<SortingState>([]);
+  const [sorting, setSorting]             = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter]   = useState('');
 
   const table = useReactTable({
     data,
@@ -59,20 +60,22 @@ export default function StatsTable<T extends object>({
   return (
     <div className="flex flex-col gap-4">
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        {globalFilterKey !== undefined && (
-          <input
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder={globalFilterPlaceholder}
-            className="rounded border border-border bg-surface px-3 py-1.5 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent"
-          />
-        )}
-        {filterControls}
-      </div>
+      {(globalFilterKey !== undefined || filterControls) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {globalFilterKey !== undefined && (
+            <input
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder={globalFilterPlaceholder}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-white placeholder:text-muted focus:border-[#3b82f6]/50 focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors"
+            />
+          )}
+          {filterControls}
+        </div>
+      )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="overflow-x-auto rounded-xl border border-border shadow-lg">
         <table className="w-full border-collapse text-sm">
           <thead>
             {table.getHeaderGroups().map((hg) => (
@@ -83,13 +86,18 @@ export default function StatsTable<T extends object>({
                     onClick={header.column.getToggleSortingHandler()}
                     className={[
                       'whitespace-nowrap border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted',
-                      header.column.getCanSort() ? 'cursor-pointer select-none hover:text-white' : '',
-                      // first column: sticky left, higher z-index to sit above body sticky cells
-                      hi === 0 ? 'sticky left-0 z-[20] bg-surface shadow-[2px_0_6px_rgba(0,0,0,0.6)]' : '',
+                      header.column.getCanSort()
+                        ? 'cursor-pointer select-none hover:text-white transition-colors'
+                        : '',
+                      hi === 0
+                        ? 'sticky left-0 z-[20] bg-surface shadow-[2px_0_8px_rgba(0,0,0,0.6)]'
+                        : '',
                     ].join(' ')}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getCanSort() && <SortIcon dir={header.column.getIsSorted()} />}
+                    {header.column.getCanSort() && (
+                      <SortIcon dir={header.column.getIsSorted()} />
+                    )}
                   </th>
                 ))}
               </tr>
@@ -106,8 +114,8 @@ export default function StatsTable<T extends object>({
               table.getRowModel().rows.map((row, i) => (
                 <tr
                   key={row.id}
-                  className={`group border-b border-border transition-colors hover:bg-hover ${
-                    i % 2 === 0 ? 'bg-base' : 'bg-surface/40'
+                  className={`group border-b border-border transition-colors duration-150 hover:bg-hover cursor-pointer ${
+                    i % 2 === 0 ? 'bg-base' : 'bg-surface/30'
                   }`}
                 >
                   {row.getVisibleCells().map((cell, ci) => (
@@ -117,9 +125,12 @@ export default function StatsTable<T extends object>({
                         'whitespace-nowrap px-3 py-2 text-sm',
                         ci === 0
                           ? [
-                              'sticky left-0 z-[10] bg-[#0d1117] group-hover:bg-hover',
-                              'shadow-[2px_0_4px_rgba(0,0,0,0.5)]',
-                              i < 3 ? MEDAL_BORDER[i] : 'border-l-[3px] border-l-transparent',
+                              'sticky left-0 z-[10] bg-base group-hover:bg-hover',
+                              'shadow-[2px_0_6px_rgba(0,0,0,0.5)]',
+                              'transition-colors duration-150',
+                              i < 3
+                                ? MEDAL_BORDER[i]
+                                : 'border-l-[3px] border-l-transparent',
                             ].join(' ')
                           : '',
                       ].join(' ')}

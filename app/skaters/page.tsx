@@ -169,7 +169,7 @@ export default function SkatersPage() {
       <select
         value={posFilter}
         onChange={(e) => setPosFilter(e.target.value)}
-        className="rounded border border-border bg-surface px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-accent"
+        className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-white transition-colors focus:border-[#3b82f6]/50 focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/40"
         aria-label="Filter by position"
       >
         {POSITIONS.map((p) => (
@@ -179,7 +179,7 @@ export default function SkatersPage() {
       <select
         value={teamFilter}
         onChange={(e) => setTeamFilter(e.target.value)}
-        className="rounded border border-border bg-surface px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-accent"
+        className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-white transition-colors focus:border-[#3b82f6]/50 focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/40"
         aria-label="Filter by team"
       >
         {teams.map((t) => (

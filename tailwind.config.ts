@@ -10,12 +10,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        surface: "#161b22",
-        base: "#0d1117",
-        accent: "#1f6feb",
-        muted: "#8b949e",
-        border: "#30363d",
-        hover: "#1c2128",
+        base:    '#0a0e1a',
+        surface: '#111827',
+        hover:   '#162032',
+        accent:  '#3b82f6',
+        cyan:    '#06b6d4',
+        muted:   '#6b7280',
+        border:  '#1e2a3e',
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+      },
+      backgroundImage: {
+        'accent-gradient': 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
       },
     },
   },

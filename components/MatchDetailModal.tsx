@@ -168,7 +168,7 @@ export default function MatchDetailModal({
         className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
-        <div className="relative my-8 w-full max-w-lg rounded-2xl border border-border bg-[#0d1117] shadow-2xl">
+        <div className="relative my-8 w-full max-w-lg rounded-2xl border border-border bg-base shadow-2xl">
           <button
             onClick={onClose}
             className="absolute right-3 top-3 z-10 rounded-lg p-1.5 text-muted hover:bg-hover hover:text-white"
