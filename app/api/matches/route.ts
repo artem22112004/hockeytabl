@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     gameDate:     g.gameDate,
     startTimeUTC: g.startTimeUTC,
     gameState:    g.gameState,
+    gameType:     g.gameType ?? 2,
     period:       g.periodDescriptor?.number ?? null,
     periodType:   g.periodDescriptor?.periodType ?? null,
     clock: g.clock

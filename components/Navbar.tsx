@@ -6,11 +6,10 @@ import { usePathname } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
 
 const NAV_LINKS = [
-  { href: '/matches',      label: 'Matches'      },
-  { href: '/skaters',      label: 'Skaters'      },
-  { href: '/goalies',      label: 'Goalies'      },
-  { href: '/teams',        label: 'Teams'        },
-  { href: '/match-center', label: 'Match Center' },
+  { href: '/',        label: 'Games',   exact: true  },
+  { href: '/skaters', label: 'Players', exact: false },
+  { href: '/goalies', label: 'Goalies', exact: false },
+  { href: '/teams',   label: 'Teams',   exact: false },
 ];
 
 function PuckIcon() {
@@ -32,6 +31,11 @@ export default function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  function isActive(href: string, exact: boolean) {
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(href + '/');
+  }
+
   return (
     <nav className="sticky top-0 z-50 border-b border-[#1e2d45] bg-[#111520]/80 backdrop-blur-[12px]">
       <div className="mx-auto max-w-screen-2xl px-4">
@@ -51,8 +55,8 @@ export default function Navbar() {
 
           {/* Nav links */}
           <div className="flex items-center justify-center gap-0.5">
-            {NAV_LINKS.map(({ href, label }) => {
-              const active = pathname === href || (pathname.startsWith(href + '/') && href !== '/');
+            {NAV_LINKS.map(({ href, label, exact }) => {
+              const active = isActive(href, exact);
               return (
                 <Link
                   key={href}
@@ -115,8 +119,8 @@ export default function Navbar() {
             <div className="pb-2">
               <GlobalSearch variant="navbar" />
             </div>
-            {NAV_LINKS.map(({ href, label }) => {
-              const active = pathname === href || pathname.startsWith(href + '/');
+            {NAV_LINKS.map(({ href, label, exact }) => {
+              const active = isActive(href, exact);
               return (
                 <Link
                   key={href}
