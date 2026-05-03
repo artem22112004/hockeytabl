@@ -7,6 +7,7 @@ import Link from 'next/link';
 import TeamStatsPanel from '@/components/TeamStatsPanel';
 import BettingStats from '@/components/BettingStats';
 import HeadToHead from '@/components/HeadToHead';
+import StatComparisonPanel from '@/components/StatComparisonPanel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -148,19 +149,30 @@ export default function MatchCenterGamePage({ params }: { params: { gameId: stri
 
       {/* Tab content */}
       {tab === 'stats' && (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <TeamStatsPanel
-            abbrev={game.awayTeam.abbrev}
-            name={game.awayTeam.name}
-            logo={game.awayTeam.logo}
-            rankByAbbrev={rankByAbbrev}
+        <div className="flex flex-col gap-4">
+          <StatComparisonPanel
+            awayAbbrev={game.awayTeam.abbrev}
+            awayName={game.awayTeam.name}
+            awayLogo={game.awayTeam.logo}
+            homeAbbrev={game.homeTeam.abbrev}
+            homeName={game.homeTeam.name}
+            homeLogo={game.homeTeam.logo}
+            season={game.season}
           />
-          <TeamStatsPanel
-            abbrev={game.homeTeam.abbrev}
-            name={game.homeTeam.name}
-            logo={game.homeTeam.logo}
-            rankByAbbrev={rankByAbbrev}
-          />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <TeamStatsPanel
+              abbrev={game.awayTeam.abbrev}
+              name={game.awayTeam.name}
+              logo={game.awayTeam.logo}
+              rankByAbbrev={rankByAbbrev}
+            />
+            <TeamStatsPanel
+              abbrev={game.homeTeam.abbrev}
+              name={game.homeTeam.name}
+              logo={game.homeTeam.logo}
+              rankByAbbrev={rankByAbbrev}
+            />
+          </div>
         </div>
       )}
 

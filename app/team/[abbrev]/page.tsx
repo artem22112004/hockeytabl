@@ -37,7 +37,17 @@ function StatBox({ label, value }: { label: string; value: string | number | nul
 export default function TeamPage({ params }: { params: { abbrev: string } }) {
   const { season }  = useSeason();
   const abbrev      = params.abbrev.toUpperCase();
-  const [tab, setTab] = useState<RosterTab>('forwards');
+  const [tab, setTab]         = useState<RosterTab>('forwards');
+  const [statCat, setStatCat] = useState<'goals' | 'shots' | 'pp' | 'pk' | 'faceoffs'>('goals');
+
+  type StatCat = 'goals' | 'shots' | 'pp' | 'pk' | 'faceoffs';
+  const STAT_CATS: { id: StatCat; label: string }[] = [
+    { id: 'goals',    label: 'Goals' },
+    { id: 'shots',    label: 'Shots' },
+    { id: 'pp',       label: 'PP%' },
+    { id: 'pk',       label: 'PK%' },
+    { id: 'faceoffs', label: 'Faceoffs' },
+  ];
 
   // Standings — find this team
   const { data: standingsData } = useSWR('/api/teams', fetcher, {
@@ -172,6 +182,129 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
         <StatBox label="PP%"    value={fmtPct(ts?.powerPlayPctg)} />
         <StatBox label="PK%"    value={fmtPct(ts?.penaltyKillPctg)} />
         <StatBox label="FOW%"   value={fmtPct(ts?.faceoffWinPctg)} />
+      </div>
+
+      {/* ── Stat trend ── */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
+            Stat Trend — Last 20 Games
+          </h2>
+          <div className="flex flex-wrap gap-1">
+            {STAT_CATS.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setStatCat(c.id)}
+                className={`rounded-lg px-3 py-1 text-sm font-medium transition-all duration-150 ${
+                  statCat === c.id
+                    ? 'bg-gradient-to-r from-[#3b82f6]/20 to-[#06b6d4]/20 text-white'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {statCat === 'goals' ? (
+          seasonGames.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted">No game data available.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {(() => {
+                const last20 = seasonGames.slice(-20);
+                const maxGF  = Math.max(...last20.map((g: any) => g.gf), 1);
+                const maxGA  = Math.max(...last20.map((g: any) => g.ga), 1);
+                const maxVal = Math.max(maxGF, maxGA);
+                return last20.map((g: any) => (
+                  <div key={g.gameId} className="flex items-center gap-2">
+                    <span className="w-20 shrink-0 text-[11px] text-muted">{g.gameDate}</span>
+                    <span className="w-5 shrink-0 text-[11px] text-muted text-center">
+                      {g.homeOrAway === 'H' ? 'vs' : '@'}
+                    </span>
+                    <span className="w-8 shrink-0 text-[11px] text-white">{g.oppAbbrev}</span>
+                    <div className="flex flex-1 flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="h-2 rounded-sm bg-[#3b82f6] transition-all duration-300"
+                          style={{ width: `${(g.gf / maxVal) * 100}%` }}
+                        />
+                        <span className="text-[11px] font-semibold text-white">{g.gf}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="h-2 rounded-sm bg-red-500/60 transition-all duration-300"
+                          style={{ width: `${(g.ga / maxVal) * 100}%` }}
+                        />
+                        <span className="text-[11px] text-muted">{g.ga}</span>
+                      </div>
+                    </div>
+                    <span className={`w-12 text-right text-xs font-bold ${g.isWin ? 'text-green-400' : 'text-red-400'}`}>
+                      {g.isWin ? 'W' : 'L'}{g.isOT ? '/OT' : ''}
+                    </span>
+                  </div>
+                ));
+              })()}
+              <div className="mt-1 flex items-center gap-4 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2 w-6 rounded-sm bg-[#3b82f6]" />
+                  <span className="text-[11px] text-muted">GF</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2 w-6 rounded-sm bg-red-500/60" />
+                  <span className="text-[11px] text-muted">GA</span>
+                </div>
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="flex flex-wrap gap-4 py-2">
+            {statCat === 'shots' && (
+              <>
+                <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
+                  <span className="text-2xl font-bold text-[#3b82f6]">
+                    {ts?.shotsForPerGame?.toFixed(1) ?? '—'}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-widest text-muted">SOG For / G</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
+                  <span className="text-2xl font-bold text-white">
+                    {ts?.shotsAgainstPerGame?.toFixed(1) ?? '—'}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-widest text-muted">SOG Against / G</span>
+                </div>
+              </>
+            )}
+            {statCat === 'pp' && (
+              <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
+                <span className="text-2xl font-bold text-[#3b82f6]">
+                  {fmtPct(ts?.powerPlayPctg)}
+                </span>
+                <span className="text-[10px] uppercase tracking-widest text-muted">Power Play %</span>
+              </div>
+            )}
+            {statCat === 'pk' && (
+              <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
+                <span className="text-2xl font-bold text-[#3b82f6]">
+                  {fmtPct(ts?.penaltyKillPctg)}
+                </span>
+                <span className="text-[10px] uppercase tracking-widest text-muted">Penalty Kill %</span>
+              </div>
+            )}
+            {statCat === 'faceoffs' && (
+              <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
+                <span className="text-2xl font-bold text-[#3b82f6]">
+                  {fmtPct(ts?.faceoffWinPctg)}
+                </span>
+                <span className="text-[10px] uppercase tracking-widest text-muted">Faceoff Win %</span>
+              </div>
+            )}
+            <p className="self-center text-xs text-muted">
+              Per-game trend data available for Goals only.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">

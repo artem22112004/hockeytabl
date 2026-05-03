@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     fetchCategory(season, gameType, 'points',      100),
     fetchCategory(season, gameType, 'goals',       200),
     fetchCategory(season, gameType, 'assists',     200),
-    fetchCategory(season, gameType, 'plusMinus',   200),
+    fetchCategory(season, gameType, 'plusMinus',   500),
     fetchCategory(season, gameType, 'toi',         200),
     fetchCategory(season, gameType, 'penaltyMins', 200),
   ]);
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     pts:        p.value           ?? 0,
     g:          gMap.get(p.id)   ?? 0,
     a:          aMap.get(p.id)   ?? 0,
-    plusMinus:  pmMap.get(p.id)  ?? 0,
+    plusMinus:  pmMap.has(p.id) ? pmMap.get(p.id)! : null,
     pim:        pimMap.get(p.id) ?? 0,
     toiSeconds: toiMap.get(p.id) ?? 0,
   }));

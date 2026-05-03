@@ -12,6 +12,10 @@ import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
 
 const POSITIONS = ['All', 'C', 'L', 'R', 'D'] as const;
+const GAME_TYPES = [
+  { id: '2', label: 'Regular Season' },
+  { id: '3', label: 'Playoffs' },
+] as const;
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -28,9 +32,10 @@ export default function SkatersPage() {
   const { season } = useSeason();
   const [posFilter, setPosFilter]   = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
+  const [gameType, setGameType]     = useState<'2' | '3'>('2');
 
   const { data, error, isLoading } = useSWR<any>(
-    `/api/skaters?season=${season}`,
+    `/api/skaters?season=${season}&gameType=${gameType}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
@@ -135,7 +140,8 @@ export default function SkatersPage() {
         header: '+/−',
         accessorFn: (r) => r.plusMinus,
         cell: (i) => {
-          const v = i.getValue() as number;
+          const v = i.getValue() as number | null;
+          if (v === null) return <span className="text-muted">—</span>;
           return (
             <span className={v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-muted'}>
               {v > 0 ? `+${v}` : v}
@@ -190,7 +196,24 @@ export default function SkatersPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Skater Stats</h1>
-        <SeasonSelector />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
+            {GAME_TYPES.map((gt) => (
+              <button
+                key={gt.id}
+                onClick={() => setGameType(gt.id as '2' | '3')}
+                className={`rounded px-3 py-1 text-sm font-medium transition-all duration-150 ${
+                  gameType === gt.id
+                    ? 'bg-gradient-to-r from-[#3b82f6]/20 to-[#06b6d4]/20 text-white'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                {gt.label}
+              </button>
+            ))}
+          </div>
+          <SeasonSelector />
+        </div>
       </div>
 
       {isLoading && <LoadingSpinner />}

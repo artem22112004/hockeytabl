@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import StatsTable from '@/components/StatsTable';
@@ -10,15 +11,21 @@ import SeasonSelector from '@/components/SeasonSelector';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
 
+const GAME_TYPES = [
+  { id: '2', label: 'Regular Season' },
+  { id: '3', label: 'Playoffs' },
+] as const;
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 type Row = any;
 
 export default function GoaliesPage() {
   const { season } = useSeason();
+  const [gameType, setGameType] = useState<'2' | '3'>('2');
 
   const { data, error, isLoading } = useSWR<any>(
-    `/api/goalies?season=${season}`,
+    `/api/goalies?season=${season}&gameType=${gameType}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
@@ -42,13 +49,23 @@ export default function GoaliesPage() {
         header: 'Goalie',
         accessorFn: (r) => `${r.firstName.default} ${r.lastName.default}`,
         cell: ({ row }) => {
-          const g = row.original;
+          const g    = row.original;
           const name = `${g.firstName.default} ${g.lastName.default}`;
           return (
-            <div className="flex items-center gap-2">
-              <Image src={g.headshot} alt={name} width={28} height={28} className="rounded-full object-cover" unoptimized />
-              <span className="font-medium text-white">{name}</span>
-            </div>
+            <Link
+              href={`/player/${g.id}`}
+              className="flex items-center gap-2 text-white transition-colors hover:text-[#3b82f6]"
+            >
+              <Image
+                src={g.headshot}
+                alt={name}
+                width={28}
+                height={28}
+                className="shrink-0 rounded-full object-cover ring-1 ring-border"
+                unoptimized
+              />
+              <span className="font-medium underline-offset-2 hover:underline">{name}</span>
+            </Link>
           );
         },
       },
@@ -59,10 +76,13 @@ export default function GoaliesPage() {
         cell: ({ row }) => {
           const g = row.original;
           return (
-            <div className="flex items-center gap-1.5">
+            <Link
+              href={`/team/${g.teamAbbrev}`}
+              className="flex items-center gap-1.5 transition-colors hover:text-[#3b82f6]"
+            >
               <Image src={teamLogoUrl(g.teamAbbrev)} alt={g.teamAbbrev} width={20} height={20} unoptimized />
               <span className="text-muted">{g.teamAbbrev}</span>
-            </div>
+            </Link>
           );
         },
       },
@@ -70,7 +90,7 @@ export default function GoaliesPage() {
         id: 'w',
         header: 'W',
         accessorFn: (r) => r.w,
-        cell: (i) => <span className="font-bold text-accent">{i.getValue() as number}</span>,
+        cell: (i) => <span className="font-bold text-[#3b82f6]">{i.getValue() as number}</span>,
       },
       {
         id: 'gaa',
@@ -98,7 +118,24 @@ export default function GoaliesPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Goalie Stats</h1>
-        <SeasonSelector />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
+            {GAME_TYPES.map((gt) => (
+              <button
+                key={gt.id}
+                onClick={() => setGameType(gt.id as '2' | '3')}
+                className={`rounded px-3 py-1 text-sm font-medium transition-all duration-150 ${
+                  gameType === gt.id
+                    ? 'bg-gradient-to-r from-[#3b82f6]/20 to-[#06b6d4]/20 text-white'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                {gt.label}
+              </button>
+            ))}
+          </div>
+          <SeasonSelector />
+        </div>
       </div>
 
       {isLoading && <LoadingSpinner />}
@@ -119,7 +156,7 @@ export default function GoaliesPage() {
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-24">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-accent" />
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-[#3b82f6]" />
     </div>
   );
 }
