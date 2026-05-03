@@ -8,6 +8,8 @@ import Link from 'next/link';
 import { useSeason } from '@/components/SeasonContext';
 import { teamLogoUrl } from '@/lib/nhl-api';
 import TotalsTable from '@/components/TotalsTable';
+import dynamic from 'next/dynamic';
+const TrendChart = dynamic(() => import('@/components/TrendChart'), { ssr: false });
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -37,16 +39,20 @@ function StatBox({ label, value }: { label: string; value: string | number | nul
 export default function TeamPage({ params }: { params: { abbrev: string } }) {
   const { season }  = useSeason();
   const abbrev      = params.abbrev.toUpperCase();
-  const [tab, setTab]         = useState<RosterTab>('forwards');
-  const [statCat, setStatCat] = useState<'goals' | 'shots' | 'pp' | 'pk' | 'faceoffs'>('goals');
+  const [tab, setTab]           = useState<RosterTab>('forwards');
 
-  type StatCat = 'goals' | 'shots' | 'pp' | 'pk' | 'faceoffs';
+  type StatCat = 'goals' | 'shots' | 'hits' | 'pim' | 'faceoffs' | 'pp' | 'pk';
+  const [statCat, setStatCat]   = useState<StatCat>('goals');
+  const [trendVenue, setTrendVenue] = useState<'all' | 'H' | 'A'>('all');
+
   const STAT_CATS: { id: StatCat; label: string }[] = [
     { id: 'goals',    label: 'Goals' },
     { id: 'shots',    label: 'Shots' },
+    { id: 'hits',     label: 'Hits' },
+    { id: 'pim',      label: 'PIM' },
+    { id: 'faceoffs', label: 'Faceoffs' },
     { id: 'pp',       label: 'PP%' },
     { id: 'pk',       label: 'PK%' },
-    { id: 'faceoffs', label: 'Faceoffs' },
   ];
 
   // Standings — find this team
@@ -83,6 +89,13 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
     { revalidateOnFocus: false }
   );
 
+  // Last 20 games with full box-score stats
+  const { data: gameLogData, isLoading: gameLogLoading } = useSWR(
+    `/api/team/${abbrev}/game-log?season=${season}&limit=20`,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
   const standing = useMemo(
     () =>
       (standingsData?.standings ?? []).find(
@@ -95,6 +108,7 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
   const games: any[] = scheduleData?.games ?? [];
   const ts = statsData?.teamStats ?? null;
   const seasonGames: any[] = seasonGamesData?.games ?? [];
+  const gameLog: any[]     = gameLogData?.games ?? [];
 
   const gp = standing?.gamesPlayed ?? 0;
   const gfPg = gp > 0 ? ((standing?.goalFor ?? 0) / gp).toFixed(2) : null;
@@ -185,127 +199,139 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
       </div>
 
       {/* ── Stat trend ── */}
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
-            Stat Trend — Last 20 Games
-          </h2>
-          <div className="flex flex-wrap gap-1">
-            {STAT_CATS.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setStatCat(c.id)}
-                className={`rounded-lg px-3 py-1 text-sm font-medium transition-all duration-150 ${
-                  statCat === c.id
-                    ? 'bg-gradient-to-r from-[#3b82f6]/20 to-[#06b6d4]/20 text-white'
-                    : 'text-muted hover:text-white'
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {(() => {
+        const venueFiltered = trendVenue === 'all'
+          ? gameLog
+          : gameLog.filter((g: any) => g.homeOrAway === trendVenue);
 
-        {statCat === 'goals' ? (
-          seasonGames.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted">No game data available.</p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {(() => {
-                const last20 = seasonGames.slice(-20);
-                const maxGF  = Math.max(...last20.map((g: any) => g.gf), 1);
-                const maxGA  = Math.max(...last20.map((g: any) => g.ga), 1);
-                const maxVal = Math.max(maxGF, maxGA);
-                return last20.map((g: any) => (
-                  <div key={g.gameId} className="flex items-center gap-2">
-                    <span className="w-20 shrink-0 text-[11px] text-muted">{g.gameDate}</span>
-                    <span className="w-5 shrink-0 text-[11px] text-muted text-center">
-                      {g.homeOrAway === 'H' ? 'vs' : '@'}
-                    </span>
-                    <span className="w-8 shrink-0 text-[11px] text-white">{g.oppAbbrev}</span>
-                    <div className="flex flex-1 flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <div
-                          className="h-2 rounded-sm bg-[#3b82f6] transition-all duration-300"
-                          style={{ width: `${(g.gf / maxVal) * 100}%` }}
-                        />
-                        <span className="text-[11px] font-semibold text-white">{g.gf}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div
-                          className="h-2 rounded-sm bg-red-500/60 transition-all duration-300"
-                          style={{ width: `${(g.ga / maxVal) * 100}%` }}
-                        />
-                        <span className="text-[11px] text-muted">{g.ga}</span>
-                      </div>
-                    </div>
-                    <span className={`w-12 text-right text-xs font-bold ${g.isWin ? 'text-green-400' : 'text-red-400'}`}>
-                      {g.isWin ? 'W' : 'L'}{g.isOT ? '/OT' : ''}
-                    </span>
-                  </div>
-                ));
-              })()}
-              <div className="mt-1 flex items-center gap-4 pt-1">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-6 rounded-sm bg-[#3b82f6]" />
-                  <span className="text-[11px] text-muted">GF</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-6 rounded-sm bg-red-500/60" />
-                  <span className="text-[11px] text-muted">GA</span>
-                </div>
+        type ColDef = { header: string; forKey: string; againstKey: string | null; fmtFor?: (v: any) => string; fmtAgainst?: (v: any) => string };
+        const colMap: Record<string, ColDef> = {
+          goals:    { header: 'Goals',    forKey: 'gf',          againstKey: 'ga',           fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
+          shots:    { header: 'Shots',    forKey: 'shots',       againstKey: 'shotsAgainst', fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
+          hits:     { header: 'Hits',     forKey: 'hits',        againstKey: 'hitsAgainst',  fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
+          pim:      { header: 'PIM',      forKey: 'pim',         againstKey: 'pimAgainst',   fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
+          faceoffs: { header: 'Faceoffs', forKey: 'faceoffPctg', againstKey: null,            fmtFor: (v) => v != null ? `${v.toFixed(1)}%` : '—', fmtAgainst: null },
+        };
+        const isChart = statCat === 'pp' || statCat === 'pk';
+        const col     = !isChart ? colMap[statCat] : null;
+
+        return (
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+            {/* Header row */}
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted shrink-0">
+                Stat Trend — Last 20 Games
+              </h2>
+              <div className="flex flex-wrap gap-1">
+                {STAT_CATS.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setStatCat(c.id)}
+                    className={`rounded-lg px-3 py-1 text-sm font-medium transition-all duration-150 ${
+                      statCat === c.id
+                        ? 'bg-gradient-to-r from-[#3b82f6]/20 to-[#06b6d4]/20 text-white'
+                        : 'text-muted hover:text-white'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto flex gap-1">
+                {(['all', 'H', 'A'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setTrendVenue(v)}
+                    className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                      trendVenue === v
+                        ? 'bg-[#3b82f6] text-white'
+                        : 'border border-border text-muted hover:text-white'
+                    }`}
+                  >
+                    {v === 'all' ? 'All' : v === 'H' ? 'Home' : 'Away'}
+                  </button>
+                ))}
               </div>
             </div>
-          )
-        ) : (
-          <div className="flex flex-wrap gap-4 py-2">
-            {statCat === 'shots' && (
-              <>
-                <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
-                  <span className="text-2xl font-bold text-[#3b82f6]">
-                    {ts?.shotsForPerGame?.toFixed(1) ?? '—'}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-widest text-muted">SOG For / G</span>
-                </div>
-                <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
-                  <span className="text-2xl font-bold text-white">
-                    {ts?.shotsAgainstPerGame?.toFixed(1) ?? '—'}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-widest text-muted">SOG Against / G</span>
-                </div>
-              </>
-            )}
-            {statCat === 'pp' && (
-              <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
-                <span className="text-2xl font-bold text-[#3b82f6]">
-                  {fmtPct(ts?.powerPlayPctg)}
-                </span>
-                <span className="text-[10px] uppercase tracking-widest text-muted">Power Play %</span>
+
+            {gameLogLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-4 border-border border-t-[#3b82f6]" />
+              </div>
+            ) : venueFiltered.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">No game data available.</p>
+            ) : isChart ? (
+              /* PP% / PK% line chart */
+              <TrendChart
+                data={venueFiltered
+                  .filter((g: any) => (statCat === 'pp' ? g.ppOpps ?? 0 : 1) > 0)
+                  .map((g: any, i: number) => ({
+                    game:  i + 1,
+                    value: statCat === 'pp' ? (g.ppPctg ?? 0) : (g.pkPctg ?? 0),
+                    date:  g.gameDate,
+                    opp:   g.oppAbbrev,
+                  }))}
+                label={statCat === 'pp' ? 'PP%' : 'PK%'}
+                color={statCat === 'pp' ? '#3b82f6' : '#06b6d4'}
+                yDomain={[0, 100]}
+                formatter={(v) => `${v.toFixed(1)}%`}
+              />
+            ) : (
+              /* Table for all other stats */
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-base text-xs font-semibold uppercase tracking-wider text-muted">
+                      <th className="border-b border-border px-3 py-2 text-left">Date</th>
+                      <th className="border-b border-border px-3 py-2 text-left">Opponent</th>
+                      <th className="border-b border-border px-3 py-2 text-center">H/A</th>
+                      <th className="border-b border-border px-3 py-2 text-center">For</th>
+                      {col?.againstKey && (
+                        <th className="border-b border-border px-3 py-2 text-center">Against</th>
+                      )}
+                      {statCat === 'goals' && (
+                        <th className="border-b border-border px-3 py-2 text-center">Total</th>
+                      )}
+                      <th className="border-b border-border px-3 py-2 text-center">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {venueFiltered.map((g: any, i: number) => {
+                      const forVal = col ? g[col.forKey] : null;
+                      const agVal  = col?.againstKey ? g[col.againstKey] : null;
+                      const resultLabel = g.isWin ? `W${g.isOT ? '/OT' : ''}` : `L${g.isOT ? '/OT' : ''}`;
+                      return (
+                        <tr
+                          key={g.gameId}
+                          className={`border-b border-border hover:bg-hover ${i % 2 === 0 ? 'bg-base' : 'bg-surface/30'}`}
+                        >
+                          <td className="whitespace-nowrap px-3 py-2 text-muted">{g.gameDate}</td>
+                          <td className="px-3 py-2 font-medium text-white">{g.oppAbbrev}</td>
+                          <td className="px-3 py-2 text-center text-muted">{g.homeOrAway === 'H' ? 'vs' : '@'}</td>
+                          <td className="px-3 py-2 text-center font-semibold text-white">
+                            {col ? col.fmtFor!(forVal) : '—'}
+                          </td>
+                          {col?.againstKey && (
+                            <td className="px-3 py-2 text-center text-muted">
+                              {col.fmtAgainst!(agVal)}
+                            </td>
+                          )}
+                          {statCat === 'goals' && (
+                            <td className="px-3 py-2 text-center text-white">{g.total}</td>
+                          )}
+                          <td className={`px-3 py-2 text-center text-xs font-bold ${g.isWin ? 'text-green-400' : 'text-red-400'}`}>
+                            {resultLabel}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
-            {statCat === 'pk' && (
-              <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
-                <span className="text-2xl font-bold text-[#3b82f6]">
-                  {fmtPct(ts?.penaltyKillPctg)}
-                </span>
-                <span className="text-[10px] uppercase tracking-widest text-muted">Penalty Kill %</span>
-              </div>
-            )}
-            {statCat === 'faceoffs' && (
-              <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-base px-6 py-3">
-                <span className="text-2xl font-bold text-[#3b82f6]">
-                  {fmtPct(ts?.faceoffWinPctg)}
-                </span>
-                <span className="text-[10px] uppercase tracking-widest text-muted">Faceoff Win %</span>
-              </div>
-            )}
-            <p className="self-center text-xs text-muted">
-              Per-game trend data available for Goals only.
-            </p>
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
 

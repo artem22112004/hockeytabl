@@ -8,8 +8,10 @@ import dynamic from 'next/dynamic';
 
 import { useSeason } from '@/components/SeasonContext';
 import type { ChartPoint } from '@/components/PointsChart';
+import type { GoalieChartPoint } from '@/components/GoalieChart';
 
-const PointsChart = dynamic(() => import('@/components/PointsChart'), { ssr: false });
+const PointsChart  = dynamic(() => import('@/components/PointsChart'),  { ssr: false });
+const GoalieChart  = dynamic(() => import('@/components/GoalieChart'),  { ssr: false });
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -38,10 +40,15 @@ function pmLabel(v: number) {
   return v > 0 ? `+${v}` : String(v);
 }
 
+function decisionClass(d: string | null | undefined) {
+  if (d === 'W') return 'text-green-400 font-bold';
+  if (d === 'L') return 'text-red-400 font-bold';
+  if (d === 'OT') return 'text-yellow-400 font-bold';
+  return 'text-muted';
+}
+
 function StatBox({
-  label,
-  value,
-  accent,
+  label, value, accent,
 }: {
   label: string;
   value: string | number | null | undefined;
@@ -57,10 +64,9 @@ function StatBox({
   );
 }
 
-function SeasonBlock({ s, label }: { s: any; label: string }) {
+function SkaterSeasonBlock({ s, label }: { s: any; label: string }) {
   if (!s) return null;
-  const abbrev =
-    typeof s.teamAbbrev === 'object' ? s.teamAbbrev?.default : s.teamAbbrev;
+  const abbrev = typeof s.teamAbbrev === 'object' ? s.teamAbbrev?.default : s.teamAbbrev;
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
@@ -72,10 +78,7 @@ function SeasonBlock({ s, label }: { s: any; label: string }) {
         <StatBox label="G"   value={s.goals} />
         <StatBox label="A"   value={s.assists} />
         <StatBox label="PTS" value={s.points} accent />
-        <StatBox
-          label="+/−"
-          value={s.plusMinus != null ? pmLabel(s.plusMinus) : null}
-        />
+        <StatBox label="+/−" value={s.plusMinus != null ? pmLabel(s.plusMinus) : null} />
       </div>
       <div className="grid grid-cols-4 gap-2">
         <StatBox label="PPG" value={s.powerPlayGoals} />
@@ -83,12 +86,33 @@ function SeasonBlock({ s, label }: { s: any; label: string }) {
         <StatBox label="SOG" value={s.shots} />
         <StatBox
           label="S%"
-          value={
-            s.shootingPctg != null
-              ? `${(s.shootingPctg * 100).toFixed(1)}%`
-              : null
-          }
+          value={s.shootingPctg != null ? `${(s.shootingPctg * 100).toFixed(1)}%` : null}
         />
+      </div>
+    </div>
+  );
+}
+
+function GoalieSeasonBlock({ s, label }: { s: any; label: string }) {
+  if (!s) return null;
+  const abbrev = typeof s.teamAbbrev === 'object' ? s.teamAbbrev?.default : s.teamAbbrev;
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted">{label}</h3>
+        {abbrev && <span className="text-xs text-muted">{abbrev}</span>}
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        <StatBox label="GP"  value={s.gamesPlayed} />
+        <StatBox label="W"   value={s.wins} />
+        <StatBox label="L"   value={s.losses} />
+        <StatBox label="OT"  value={s.otLosses} />
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        <StatBox label="GAA" value={s.gaa != null ? s.gaa.toFixed(2) : null} />
+        <StatBox label="SV%" value={s.savePctg != null ? s.savePctg.toFixed(3) : null} accent />
+        <StatBox label="SO"  value={s.shutouts} />
+        <StatBox label="GA"  value={s.goalsAgainst} />
       </div>
     </div>
   );
@@ -110,16 +134,20 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
     { revalidateOnFocus: false }
   );
 
-  // Sort game log oldest → newest for the chart
+  const isGoalie = bio?.position === 'G';
+
+  // Sort game log oldest → newest for chart
   const gameLog: any[] = useMemo(
     () =>
-      [...(logData?.gameLog ?? [])].sort((a, b) =>
+      [...(logData?.gameLog ?? [])].sort((a: any, b: any) =>
         a.gameDate.localeCompare(b.gameDate)
       ),
     [logData]
   );
 
+  // ── Skater chart data ──────────────────────────────────────────────────────
   const chartData = useMemo<ChartPoint[]>(() => {
+    if (isGoalie) return [];
     let cum = 0;
     return gameLog.map((g, i) => {
       cum += g.points ?? 0;
@@ -133,13 +161,32 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
         assists: g.assists  ?? 0,
       };
     });
-  }, [gameLog]);
+  }, [gameLog, isGoalie]);
 
-  // Newest first, cap at 20 for the table
-  const last20 = useMemo(
-    () => [...gameLog].reverse().slice(0, 20),
-    [gameLog]
-  );
+  // ── Goalie chart data ──────────────────────────────────────────────────────
+  const goalieChartData = useMemo<GoalieChartPoint[]>(() => {
+    if (!isGoalie) return [];
+    return gameLog
+      .filter((g) => g.decision)   // only decisive games
+      .map((g, i) => ({
+        game:         i + 1,
+        date:         g.gameDate,
+        opp:          g.opponentAbbrev ?? '',
+        decision:     g.decision ?? 'ND',
+        svPctg:       g.savePercentage != null
+                        ? +(g.savePercentage * 100).toFixed(1)
+                        : g.saveShotsAgainst
+                          ? (() => {
+                              const [sv, sa] = g.saveShotsAgainst.split('/').map(Number);
+                              return sa > 0 ? +((sv / sa) * 100).toFixed(1) : 0;
+                            })()
+                          : 0,
+        goalsAgainst: g.goalsAgainst ?? 0,
+      }));
+  }, [gameLog, isGoalie]);
+
+  // Last 20 games newest-first
+  const last20 = useMemo(() => [...gameLog].reverse().slice(0, 20), [gameLog]);
 
   if (bioLoading) {
     return (
@@ -167,10 +214,10 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
 
       {/* Back */}
       <Link
-        href="/skaters"
+        href={isGoalie ? '/goalies' : '/skaters'}
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted transition-colors hover:text-white"
       >
-        ← Back to Skaters
+        ← Back to {isGoalie ? 'Goalies' : 'Skaters'}
       </Link>
 
       {/* ── Player header ── */}
@@ -178,7 +225,6 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#3b82f6]/8 via-transparent to-[#06b6d4]/5" />
         <div className="relative flex flex-wrap items-start gap-6 p-6">
 
-          {/* Photo */}
           <Image
             src={bio.headshot || 'https://assets.nhle.com/mugs/nhl/60x60/default-skater.png'}
             alt={bio.fullName}
@@ -188,7 +234,6 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
             unoptimized
           />
 
-          {/* Info */}
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[#3b82f6]/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-widest text-[#3b82f6]">
@@ -199,9 +244,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
               )}
             </div>
 
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
-              {bio.fullName}
-            </h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">{bio.fullName}</h1>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
               {bio.teamAbbrev && (
@@ -209,24 +252,16 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
                   href={`/team/${bio.teamAbbrev}`}
                   className="flex items-center gap-1.5 transition-colors hover:text-white"
                 >
-                  <Image
-                    src={bio.teamLogo}
-                    alt={bio.teamAbbrev}
-                    width={20}
-                    height={20}
-                    unoptimized
-                  />
+                  <Image src={bio.teamLogo} alt={bio.teamAbbrev} width={20} height={20} unoptimized />
                   <span>{bio.teamName || bio.teamAbbrev}</span>
                 </Link>
               )}
-              {age    && <span>{age} yrs</span>}
+              {age                && <span>{age} yrs</span>}
               {bio.heightInInches && <span>{fmtHeight(bio.heightInInches)}</span>}
               {bio.weightInPounds && <span>{bio.weightInPounds} lbs</span>}
-              {bio.shootsCatches  && <span>Shoots {bio.shootsCatches}</span>}
+              {bio.shootsCatches  && <span>{isGoalie ? 'Catches' : 'Shoots'} {bio.shootsCatches}</span>}
               {(bio.birthCity || bio.birthCountry) && (
-                <span>
-                  {[bio.birthCity, bio.birthCountry].filter(Boolean).join(', ')}
-                </span>
+                <span>{[bio.birthCity, bio.birthCountry].filter(Boolean).join(', ')}</span>
               )}
             </div>
 
@@ -242,34 +277,61 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
 
       {/* ── Season stats ── */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <SeasonBlock
-          s={bio.currentSeason}
-          label={bio.currentSeason ? `${fmtSeason(bio.currentSeason.season)} Season` : 'Current Season'}
-        />
-        <SeasonBlock
-          s={bio.prevSeason}
-          label={bio.prevSeason ? `${fmtSeason(bio.prevSeason.season)} Season` : 'Previous Season'}
-        />
+        {isGoalie ? (
+          <>
+            <GoalieSeasonBlock
+              s={bio.currentSeason}
+              label={bio.currentSeason ? `${fmtSeason(bio.currentSeason.season)} Season` : 'Current Season'}
+            />
+            <GoalieSeasonBlock
+              s={bio.prevSeason}
+              label={bio.prevSeason ? `${fmtSeason(bio.prevSeason.season)} Season` : 'Previous Season'}
+            />
+          </>
+        ) : (
+          <>
+            <SkaterSeasonBlock
+              s={bio.currentSeason}
+              label={bio.currentSeason ? `${fmtSeason(bio.currentSeason.season)} Season` : 'Current Season'}
+            />
+            <SkaterSeasonBlock
+              s={bio.prevSeason}
+              label={bio.prevSeason ? `${fmtSeason(bio.prevSeason.season)} Season` : 'Previous Season'}
+            />
+          </>
+        )}
       </div>
 
-      {/* ── Points per game chart ── */}
-      {chartData.length > 0 && (
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
-            Cumulative Points — {fmtSeason(season)} Season
-            <span className="ml-2 font-normal normal-case text-muted">
-              ({chartData.length} games · {chartData.at(-1)?.cumPts} pts)
-            </span>
-          </h2>
-          <PointsChart data={chartData} />
-        </div>
+      {/* ── Trend chart ── */}
+      {isGoalie ? (
+        goalieChartData.length > 0 && (
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
+              GAA &amp; SV% Trend — {fmtSeason(season)} Season
+              <span className="ml-2 font-normal normal-case text-muted">
+                ({goalieChartData.length} decisive games)
+              </span>
+            </h2>
+            <GoalieChart data={goalieChartData} />
+          </div>
+        )
+      ) : (
+        chartData.length > 0 && (
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
+              Cumulative Points — {fmtSeason(season)} Season
+              <span className="ml-2 font-normal normal-case text-muted">
+                ({chartData.length} games · {chartData.at(-1)?.cumPts} pts)
+              </span>
+            </h2>
+            <PointsChart data={chartData} />
+          </div>
+        )
       )}
 
       {/* ── Game log ── */}
       <div className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
-          Last 20 Games
-        </h2>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">Last 20 Games</h2>
 
         {logLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -277,7 +339,66 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
           </div>
         ) : last20.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">No games found for this season.</p>
+        ) : isGoalie ? (
+          /* ── Goalie game log ── */
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-surface">
+                  {['Date', 'Opponent', 'Dec', 'SA', 'Saves', 'SV%', 'GA', 'TOI'].map((h) => (
+                    <th
+                      key={h}
+                      className="whitespace-nowrap border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {last20.map((g: any, i: number) => {
+                  let saves: number | null = null;
+                  let sa: number | null    = null;
+                  if (g.saveShotsAgainst) {
+                    const parts = g.saveShotsAgainst.split('/').map(Number);
+                    if (parts.length === 2) { saves = parts[0]; sa = parts[1]; }
+                  }
+                  const svPctg = g.savePercentage != null
+                    ? g.savePercentage.toFixed(3)
+                    : (saves != null && sa != null && sa > 0)
+                      ? (saves / sa).toFixed(3)
+                      : '—';
+
+                  return (
+                    <tr
+                      key={g.gameId ?? i}
+                      className={`border-b border-border transition-colors duration-150 hover:bg-hover ${
+                        i % 2 === 0 ? 'bg-base' : 'bg-surface/30'
+                      }`}
+                    >
+                      <td className="whitespace-nowrap px-3 py-2 text-muted">{g.gameDate}</td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <span className="text-xs text-muted">
+                          {g.homeRoadFlag === 'H' ? 'vs' : '@'}
+                        </span>{' '}
+                        <span className="font-medium text-white">{g.opponentAbbrev}</span>
+                      </td>
+                      <td className={`px-3 py-2 ${decisionClass(g.decision)}`}>
+                        {g.decision ?? '—'}
+                      </td>
+                      <td className="px-3 py-2 text-muted">{sa ?? '—'}</td>
+                      <td className="px-3 py-2 text-white">{saves ?? '—'}</td>
+                      <td className="px-3 py-2 font-semibold text-[#3b82f6]">{svPctg}</td>
+                      <td className="px-3 py-2 text-red-400">{g.goalsAgainst ?? '—'}</td>
+                      <td className="px-3 py-2 text-muted">{g.toi ?? '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
+          /* ── Skater game log ── */
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full border-collapse text-sm">
               <thead>
@@ -295,7 +416,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
               <tbody>
                 {last20.map((g: any, i: number) => (
                   <tr
-                    key={g.gameId}
+                    key={g.gameId ?? i}
                     className={`border-b border-border transition-colors duration-150 hover:bg-hover ${
                       i % 2 === 0 ? 'bg-base' : 'bg-surface/30'
                     }`}
