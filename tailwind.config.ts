@@ -10,19 +10,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        base:    '#0a0e1a',
-        surface: '#111827',
-        hover:   '#162032',
-        accent:  '#3b82f6',
+        base:    '#0B0E14',
+        surface: '#111520',
+        hover:   '#161c2e',
+        accent:  '#00D1FF',
+        indigo:  '#6366f1',
+        muted:   '#94A3B8',
+        border:  '#1e2d45',
+        success: '#22c55e',
+        danger:  '#ef4444',
         cyan:    '#06b6d4',
-        muted:   '#6b7280',
-        border:  '#1e2a3e',
       },
       fontFamily: {
         sans: ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['var(--font-jetbrains)', 'JetBrains Mono', 'Menlo', 'Monaco', 'monospace'],
       },
       backgroundImage: {
-        'accent-gradient': 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+        'accent-gradient': 'linear-gradient(135deg, #00D1FF 0%, #6366f1 100%)',
+      },
+      boxShadow: {
+        card:        '0 4px 24px rgba(0,0,0,0.4)',
+        glow:        '0 0 24px rgba(0,209,255,0.15)',
+        'glow-indigo': '0 0 24px rgba(99,102,241,0.2)',
       },
     },
   },

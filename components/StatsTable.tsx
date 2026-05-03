@@ -21,15 +21,15 @@ interface StatsTableProps<T extends object> {
 }
 
 function SortIcon({ dir }: { dir: 'asc' | 'desc' | false }) {
-  if (!dir) return <span className="ml-1 text-[10px] text-muted opacity-40">⇅</span>;
+  if (!dir) return <span className="ml-1 text-[10px] text-muted opacity-30">⇅</span>;
   return (
-    <span className="ml-1 text-[10px] text-[#3b82f6]">{dir === 'asc' ? '↑' : '↓'}</span>
+    <span className="ml-1 text-[10px] text-[#00D1FF]">{dir === 'asc' ? '↑' : '↓'}</span>
   );
 }
 
 const MEDAL_BORDER = [
   'border-l-[3px] border-l-yellow-400',
-  'border-l-[3px] border-l-slate-300',
+  'border-l-[3px] border-l-slate-400',
   'border-l-[3px] border-l-amber-600',
 ];
 
@@ -67,7 +67,7 @@ export default function StatsTable<T extends object>({
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               placeholder={globalFilterPlaceholder}
-              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-white placeholder:text-muted focus:border-[#3b82f6]/50 focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors"
+              className="rounded-lg border border-[#1e2d45] bg-[#111520] px-3 py-1.5 text-sm text-white placeholder:text-muted transition-colors focus:border-[#00D1FF]/40 focus:outline-none focus:ring-1 focus:ring-[#00D1FF]/20"
             />
           )}
           {filterControls}
@@ -75,22 +75,22 @@ export default function StatsTable<T extends object>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-border shadow-lg">
+      <div className="overflow-x-auto rounded-xl border border-[#1e2d45] shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="bg-surface">
+              <tr key={hg.id} className="bg-[#111520]">
                 {hg.headers.map((header, hi) => (
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
                     className={[
-                      'whitespace-nowrap border-b border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted',
+                      'whitespace-nowrap border-b border-[#1e2d45] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]',
                       header.column.getCanSort()
-                        ? 'cursor-pointer select-none hover:text-white transition-colors'
+                        ? 'cursor-pointer select-none transition-colors hover:text-white'
                         : '',
                       hi === 0
-                        ? 'sticky left-0 z-[20] bg-surface shadow-[2px_0_8px_rgba(0,0,0,0.6)]'
+                        ? 'sticky left-0 z-[20] bg-[#111520] shadow-[2px_0_8px_rgba(0,0,0,0.6)]'
                         : '',
                     ].join(' ')}
                   >
@@ -106,7 +106,7 @@ export default function StatsTable<T extends object>({
           <tbody>
             {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="py-12 text-center text-muted">
+                <td colSpan={columns.length} className="py-16 text-center text-[#94A3B8]">
                   No results
                 </td>
               </tr>
@@ -114,23 +114,24 @@ export default function StatsTable<T extends object>({
               table.getRowModel().rows.map((row, i) => (
                 <tr
                   key={row.id}
-                  className={`group border-b border-border transition-colors duration-150 hover:bg-hover cursor-pointer ${
-                    i % 2 === 0 ? 'bg-base' : 'bg-surface/30'
+                  className={`group border-b border-[#1e2d45] transition-colors duration-100 hover:bg-[#161c2e] ${
+                    i % 2 === 0 ? 'bg-[#0B0E14]' : 'bg-[#111520]/40'
                   }`}
                 >
                   {row.getVisibleCells().map((cell, ci) => (
                     <td
                       key={cell.id}
                       className={[
-                        'whitespace-nowrap px-3 py-2 text-sm',
+                        'whitespace-nowrap px-3 py-2.5 text-sm',
                         ci === 0
                           ? [
-                              'sticky left-0 z-[10] bg-base group-hover:bg-hover',
-                              'shadow-[2px_0_6px_rgba(0,0,0,0.5)]',
-                              'transition-colors duration-150',
+                              'sticky left-0 z-[10] transition-colors duration-100',
+                              i % 2 === 0 ? 'bg-[#0B0E14]' : 'bg-[#0f1420]',
+                              'group-hover:bg-[#161c2e]',
+                              'shadow-[2px_0_8px_rgba(0,0,0,0.5)]',
                               i < 3
                                 ? MEDAL_BORDER[i]
-                                : 'border-l-[3px] border-l-transparent',
+                                : 'border-l-[3px] border-l-transparent group-hover:border-l-[#00D1FF]/50',
                             ].join(' ')
                           : '',
                       ].join(' ')}
@@ -145,8 +146,8 @@ export default function StatsTable<T extends object>({
         </table>
       </div>
 
-      <p className="text-xs text-muted">
-        {table.getFilteredRowModel().rows.length} / {table.getCoreRowModel().rows.length} rows
+      <p className="text-[11px] text-[#94A3B8]/60">
+        {table.getFilteredRowModel().rows.length} / {table.getCoreRowModel().rows.length} players
       </p>
     </div>
   );
