@@ -8,12 +8,14 @@ import TeamStatsPanel from '@/components/TeamStatsPanel';
 import BettingStats from '@/components/BettingStats';
 import HeadToHead from '@/components/HeadToHead';
 import StatComparisonPanel from '@/components/StatComparisonPanel';
+import GameSummary from '@/components/GameSummary';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-type Tab = 'stats' | 'betting' | 'h2h';
+type Tab = 'summary' | 'stats' | 'betting' | 'h2h';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'summary', label: 'Game Summary' },
   { id: 'stats',   label: 'Match Stats' },
   { id: 'betting', label: 'Betting Stats' },
   { id: 'h2h',     label: 'Head to Head' },
@@ -21,7 +23,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function MatchCenterGamePage({ params }: { params: { gameId: string } }) {
   const { gameId } = params;
-  const [tab, setTab] = useState<Tab>('stats');
+  const [tab, setTab] = useState<Tab>('summary');
 
   const { data: game, isLoading: gameLoading } = useSWR<any>(
     `/api/game/${gameId}`,
@@ -148,6 +150,16 @@ export default function MatchCenterGamePage({ params }: { params: { gameId: stri
       </div>
 
       {/* Tab content */}
+      {tab === 'summary' && (
+        <GameSummary
+          gameId={gameId}
+          awayAbbrev={game.awayTeam.abbrev}
+          awayLogo={game.awayTeam.logo}
+          homeAbbrev={game.homeTeam.abbrev}
+          homeLogo={game.homeTeam.logo}
+        />
+      )}
+
       {tab === 'stats' && (
         <div className="flex flex-col gap-4">
           <StatComparisonPanel
