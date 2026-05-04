@@ -1,6 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+
+function numAvg(games: any[], key: string, predicate?: (g: any) => boolean): number | null {
+  const rows = predicate ? games.filter(predicate) : games;
+  const vals = rows.map((g) => g[key] as number | null).filter((v): v is number => v != null);
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
 import useSWR from 'swr';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -75,13 +82,6 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
     { revalidateOnFocus: false }
   );
 
-  // Season stats (PP%, PK%, shots)
-  const { data: statsData } = useSWR(
-    `/api/team/${abbrev}/season-stats?season=${season}`,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
-
   // All finished games (for totals table)
   const { data: seasonGamesData } = useSWR(
     `/api/team/${abbrev}/season-games?season=${season}`,
@@ -106,17 +106,41 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
 
   const roster = rosterData ?? { forwards: [], defensemen: [], goalies: [] };
   const games: any[] = scheduleData?.games ?? [];
-  const ts = statsData?.teamStats ?? null;
   const seasonGames: any[] = seasonGamesData?.games ?? [];
   const gameLog: any[]     = gameLogData?.games ?? [];
 
   const gp = standing?.gamesPlayed ?? 0;
-  const gfPg = gp > 0 ? ((standing?.goalFor ?? 0) / gp).toFixed(2) : null;
-  const gaPg = gp > 0 ? ((standing?.goalAgainst ?? 0) / gp).toFixed(2) : null;
+
+  // Venue-filtered game log (drives both trend table and summary cards)
+  const filteredLog = useMemo(
+    () => trendVenue === 'all' ? gameLog : gameLog.filter((g: any) => g.homeOrAway === trendVenue),
+    [gameLog, trendVenue]
+  );
+
+  // Summary card values computed from filtered game log
+  const cardStats = useMemo(() => ({
+    gfPg:   numAvg(filteredLog, 'gf'),
+    gaPg:   numAvg(filteredLog, 'ga'),
+    sogPg:  numAvg(filteredLog, 'shots'),
+    sogaPg: numAvg(filteredLog, 'shotsAgainst'),
+    ppPct:  numAvg(filteredLog, 'ppPctg',      (g) => (g.ppOpps ?? 0) > 0),
+    pkPct:  numAvg(filteredLog, 'pkPctg'),
+    fowPct: numAvg(filteredLog, 'faceoffPctg'),
+  }), [filteredLog]);
 
   function fmtPct(v: number | null | undefined): string {
     if (v == null) return '—';
     return `${(v * 100).toFixed(1)}%`;
+  }
+
+  function fmtAvg(v: number | null | undefined, decimals = 1): string {
+    if (v == null) return '—';
+    return v.toFixed(decimals);
+  }
+
+  function fmtPctDirect(v: number | null | undefined): string {
+    if (v == null) return '—';
+    return `${v.toFixed(1)}%`;
   }
 
   const players: any[] = roster[tab] ?? [];
@@ -187,22 +211,20 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
         </div>
       </div>
 
-      {/* ── Season stats grid ── */}
+      {/* ── Season stats grid — averages from filtered game log ── */}
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        <StatBox label="GF/G"   value={gfPg} />
-        <StatBox label="GA/G"   value={gaPg} />
-        <StatBox label="SOG/G"  value={ts?.shotsForPerGame?.toFixed(1)} />
-        <StatBox label="SOGA/G" value={ts?.shotsAgainstPerGame?.toFixed(1)} />
-        <StatBox label="PP%"    value={fmtPct(ts?.powerPlayPctg)} />
-        <StatBox label="PK%"    value={fmtPct(ts?.penaltyKillPctg)} />
-        <StatBox label="FOW%"   value={fmtPct(ts?.faceoffWinPctg)} />
+        <StatBox label="GF/G"   value={fmtAvg(cardStats.gfPg)} />
+        <StatBox label="GA/G"   value={fmtAvg(cardStats.gaPg)} />
+        <StatBox label="SOG/G"  value={fmtAvg(cardStats.sogPg)} />
+        <StatBox label="SOGA/G" value={fmtAvg(cardStats.sogaPg)} />
+        <StatBox label="PP%"    value={fmtPctDirect(cardStats.ppPct)} />
+        <StatBox label="PK%"    value={fmtPctDirect(cardStats.pkPct)} />
+        <StatBox label="FOW%"   value={fmtPctDirect(cardStats.fowPct)} />
       </div>
 
       {/* ── Stat trend ── */}
       {(() => {
-        const venueFiltered = trendVenue === 'all'
-          ? gameLog
-          : gameLog.filter((g: any) => g.homeOrAway === trendVenue);
+        const venueFiltered = filteredLog;
 
         type ColDef = { header: string; forKey: string; againstKey: string | null; fmtFor?: (v: any) => string; fmtAgainst?: (v: any) => string };
         const colMap: Record<string, ColDef> = {
