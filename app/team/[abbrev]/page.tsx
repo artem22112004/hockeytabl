@@ -232,7 +232,7 @@ export default function TeamPage({ params }: { params: { abbrev: string } }) {
           shots:    { header: 'Shots',    forKey: 'shots',       againstKey: 'shotsAgainst', fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
           hits:     { header: 'Hits',     forKey: 'hits',        againstKey: 'hitsAgainst',  fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
           pim:      { header: 'PIM',      forKey: 'pim',         againstKey: 'pimAgainst',   fmtFor: (v) => String(v ?? '—'), fmtAgainst: (v) => String(v ?? '—') },
-          faceoffs: { header: 'Faceoffs', forKey: 'faceoffPctg', againstKey: null,            fmtFor: (v) => v != null ? `${v.toFixed(1)}%` : '—', fmtAgainst: null },
+          faceoffs: { header: 'Faceoffs', forKey: 'faceoffPctg', againstKey: null,            fmtFor: (v) => v != null ? `${v.toFixed(1)}%` : '—' },
         };
         const isChart = statCat === 'pp' || statCat === 'pk';
         const col     = !isChart ? colMap[statCat] : null;

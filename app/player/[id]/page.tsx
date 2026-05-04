@@ -47,6 +47,13 @@ function decisionClass(d: string | null | undefined) {
   return 'text-muted';
 }
 
+function foPctClass(pct: number | null): string {
+  if (pct == null) return 'text-[#94A3B8]';
+  if (pct >= 55) return 'text-green-400';
+  if (pct >= 50) return 'text-yellow-400';
+  return 'text-red-400';
+}
+
 function StatBox({
   label, value, accent,
 }: {
@@ -188,6 +195,26 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
   // Last 20 games newest-first
   const last20 = useMemo(() => [...gameLog].reverse().slice(0, 20), [gameLog]);
 
+  // Faceoff data (skaters only)
+  const { data: foData } = useSWR(
+    !bioLoading && !isGoalie ? `/api/player/${id}/faceoffs?season=${season}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  // Career FO% trend from seasonTotals (oldest → newest)
+  const careerFO = useMemo(() => {
+    if (!bio?.seasonTotals) return [];
+    return [...bio.seasonTotals]
+      .filter((s: any) => s.faceoffWinningPctg != null)
+      .reverse()
+      .map((s: any) => ({
+        season: s.season,
+        foPct:  +(s.faceoffWinningPctg * 100).toFixed(1),
+        gp:     s.gamesPlayed ?? null,
+      }));
+  }, [bio]);
+
   if (bioLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -327,6 +354,87 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
             <PointsChart data={chartData} />
           </div>
         )
+      )}
+
+      {/* ── Faceoff section (skaters only) ── */}
+      {!isGoalie && foData?.data && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
+            Faceoffs — {fmtSeason(season)} Season
+          </h2>
+
+          <div className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-3">
+            {/* Main stats */}
+            <div className="grid grid-cols-4 gap-2">
+              <StatBox label="FOW" value={foData.data.foWins} />
+              <StatBox label="FOL" value={foData.data.foLosses} />
+              <StatBox label="FOA" value={foData.data.totalFaceoffs} />
+              <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-base py-3">
+                <span className={`text-xl font-bold ${foPctClass(foData.data.foPct)}`}>
+                  {foData.data.foPct != null ? `${foData.data.foPct}%` : '—'}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">FO%</span>
+              </div>
+            </div>
+
+            {/* Situational */}
+            <div className="grid grid-cols-5 gap-2">
+              {(
+                [
+                  { label: 'EV FO%', value: foData.data.evFoPct },
+                  { label: 'PP FO%', value: foData.data.ppFoPct },
+                  { label: 'DZ FO%', value: foData.data.dzFoPct },
+                  { label: 'OZ FO%', value: foData.data.ozFoPct },
+                  { label: 'NZ FO%', value: foData.data.nzFoPct },
+                ] as { label: string; value: number | null }[]
+              ).map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-base py-3"
+                >
+                  <span className={`text-lg font-bold ${foPctClass(value)}`}>
+                    {value != null ? `${value}%` : '—'}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Career FO% trend */}
+          {careerFO.length > 1 && (
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Career FO% by Season</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-base">
+                      {['Season', 'GP', 'FO%'].map((h) => (
+                        <th
+                          key={h}
+                          className="border-b border-border px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {careerFO.map((row) => (
+                      <tr key={row.season} className="border-b border-border hover:bg-hover">
+                        <td className="px-3 py-2 text-muted">{fmtSeason(row.season)}</td>
+                        <td className="px-3 py-2 text-white">{row.gp ?? '—'}</td>
+                        <td className={`px-3 py-2 font-semibold ${foPctClass(row.foPct)}`}>
+                          {row.foPct}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Game log ── */}
