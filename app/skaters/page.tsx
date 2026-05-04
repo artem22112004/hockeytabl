@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -185,9 +185,13 @@ export default function SkatersPage() {
   const [view, setView]             = useState<'points' | 'faceoffs'>('points');
 
   // Faceoff-specific filters
-  const [foPos, setFoPos]         = useState<string>('C');
+  const [foPos, setFoPos]               = useState<string>('C');
   const [foTeamFilter, setFoTeamFilter] = useState<string>('All');
-  const [minFO, setMinFO]         = useState(100);
+  const [minFO, setMinFO]               = useState(100);
+
+  useEffect(() => {
+    setMinFO(foTeamFilter === 'All' ? 100 : 50);
+  }, [foTeamFilter]);
 
   const { data, error, isLoading } = useSWR<any>(
     `/api/skaters?season=${season}&gameType=${gameType}`,
@@ -505,10 +509,7 @@ export default function SkatersPage() {
             {/* Team filter */}
             <select
               value={foTeamFilter}
-              onChange={(e) => {
-                setFoTeamFilter(e.target.value);
-                if (e.target.value !== 'All') setMinFO(50);
-              }}
+              onChange={(e) => setFoTeamFilter(e.target.value)}
               className="rounded-lg border border-[#1e2d45] bg-[#111520] px-3 py-1.5 text-sm text-white focus:border-[#00D1FF]/40 focus:outline-none focus:ring-1 focus:ring-[#00D1FF]/20"
               aria-label="Filter by team"
             >
