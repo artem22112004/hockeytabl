@@ -10,11 +10,8 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type StatTab = 'goals' | 'shots' | 'hits' | 'pp' | 'penalty' | 'faceoffs';
-type Location = 'all' | 'home' | 'away' | 'h2h';
-
-const LOCATION_LABELS: Record<Location, string> = {
-  all: 'All', home: 'Home', away: 'Away', h2h: 'H2H',
-};
+type ActiveView = StatTab | 'h2h';
+type Location = 'all' | 'home' | 'away';
 
 const STAT_TABS: { id: StatTab; label: string }[] = [
   { id: 'goals',    label: 'Goals'      },
@@ -306,15 +303,15 @@ function TeamColumn({
   logo,
   allGames,
   tab,
-  location,
 }: {
   abbrev: string;
   name: string;
   logo: string;
   allGames: any[];
   tab: StatTab;
-  location: Location;
 }) {
+  const [location, setLocation] = useState<Location>('all');
+
   const filtered = useMemo(() => {
     let g = allGames.slice(-20);
     if (location === 'home') g = g.filter((x) => x.homeOrAway === 'H');
@@ -345,11 +342,28 @@ function TeamColumn({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      {/* Team header */}
-      <div className="flex items-center gap-2">
-        <Image src={logo} alt={abbrev} width={28} height={28} unoptimized />
-        <span className="font-semibold text-white">{name}</span>
-        <span className="font-mono text-xs text-[#94A3B8]">{abbrev}</span>
+      {/* Team header + per-team location filter */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Image src={logo} alt={abbrev} width={28} height={28} unoptimized />
+          <span className="font-semibold text-white">{name}</span>
+          <span className="font-mono text-xs text-[#94A3B8]">{abbrev}</span>
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg border border-[#1e2d45] bg-[#111520] p-0.5">
+          {(['all', 'home', 'away'] as const).map((loc) => (
+            <button
+              key={loc}
+              onClick={() => setLocation(loc)}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
+                location === loc
+                  ? 'bg-gradient-to-r from-[#00D1FF]/15 to-[#6366f1]/15 text-white'
+                  : 'text-[#94A3B8] hover:text-white'
+              }`}
+            >
+              {loc.charAt(0).toUpperCase() + loc.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Summary */}
@@ -494,8 +508,7 @@ function H2HSection({ team1, team2, season }: { team1: string; team2: string; se
 
 export default function MatchPage({ params }: { params: { gameId: string } }) {
   const { gameId } = params;
-  const [tab, setTab]           = useState<StatTab>('goals');
-  const [location, setLocation] = useState<Location>('all');
+  const [activeView, setActiveView] = useState<ActiveView>('goals');
 
   const { data: game, isLoading: gameLoading } = useSWR(
     `/api/game/${gameId}`,
@@ -595,15 +608,15 @@ export default function MatchPage({ params }: { params: { gameId: string } }) {
         </div>
       </div>
 
-      {/* Stat tabs */}
+      {/* Stat tabs + H2H */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1 rounded-lg border border-[#1e2d45] bg-[#111520] p-1">
           {STAT_TABS.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => setActiveView(t.id)}
               className={`rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
-                tab === t.id
+                activeView === t.id
                   ? 'bg-gradient-to-r from-[#00D1FF]/15 to-[#6366f1]/15 text-white'
                   : 'text-[#94A3B8] hover:text-white'
               }`}
@@ -611,50 +624,41 @@ export default function MatchPage({ params }: { params: { gameId: string } }) {
               {t.label}
             </button>
           ))}
-        </div>
-
-        {/* Location / H2H filter */}
-        <div className="flex items-center gap-1 rounded-lg border border-[#1e2d45] bg-[#111520] p-1">
-          {(['all', 'home', 'away', 'h2h'] as const).map((loc) => (
-            <button
-              key={loc}
-              onClick={() => setLocation(loc)}
-              className={`rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
-                location === loc
-                  ? 'bg-gradient-to-r from-[#00D1FF]/15 to-[#6366f1]/15 text-white'
-                  : 'text-[#94A3B8] hover:text-white'
-              }`}
-            >
-              {LOCATION_LABELS[loc]}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveView('h2h')}
+            className={`rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
+              activeView === 'h2h'
+                ? 'bg-gradient-to-r from-[#00D1FF]/15 to-[#6366f1]/15 text-white'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            H2H
+          </button>
         </div>
       </div>
 
       {/* Two-column stat tables */}
-      {location !== 'h2h' && (
+      {activeView !== 'h2h' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <TeamColumn
             abbrev={game.awayTeam.abbrev}
             name={game.awayTeam.name}
             logo={game.awayTeam.logo}
             allGames={awayGames}
-            tab={tab}
-            location={location}
+            tab={activeView as StatTab}
           />
           <TeamColumn
             abbrev={game.homeTeam.abbrev}
             name={game.homeTeam.name}
             logo={game.homeTeam.logo}
             allGames={homeGames}
-            tab={tab}
-            location={location}
+            tab={activeView as StatTab}
           />
         </div>
       )}
 
       {/* H2H tab */}
-      {location === 'h2h' && (
+      {activeView === 'h2h' && (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-[#1e2d45] bg-[#0B0E14] p-5">
           <H2HSection team1={game.awayTeam.abbrev} team2={game.homeTeam.abbrev} season={season} />
         </div>
