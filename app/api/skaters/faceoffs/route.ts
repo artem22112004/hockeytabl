@@ -7,15 +7,15 @@ export async function GET(req: NextRequest) {
   const season   = searchParams.get('season')   ?? '20252026';
   const gameType = searchParams.get('gameType') ?? '2';
 
-  // All qualifying skaters (GP ≥ 5) for merging 0-faceoff players
+  // All qualifying skaters (GP ≥ 5) — basis for merging 0-faceoff players
   const summarySort    = encodeURIComponent(JSON.stringify([{ property: 'points', direction: 'DESC' }]));
   const summaryCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType} and gamesPlayed>=5`);
-  const summaryUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&start=0&limit=700&cayenneExp=${summaryCayenne}`;
+  const summaryUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&start=0&limit=1000&cayenneExp=${summaryCayenne}`;
 
-  // Faceoff percentages — no minFO filter, all players who have taken faceoffs
+  // All faceoff data — no minFO filter
   const foSort    = encodeURIComponent(JSON.stringify([{ property: 'totalFaceoffs', direction: 'DESC' }]));
   const foCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType}`);
-  const foUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&start=0&limit=700&cayenneExp=${foCayenne}`;
+  const foUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&start=0&limit=1000&cayenneExp=${foCayenne}`;
 
   const [summaryRes, foRes] = await Promise.all([
     fetch(summaryUrl, { next: { revalidate: 300 } }),
@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
   }
 
   const players = ((summaryData.data ?? []) as any[]).map((p) => {
-    const teamAbbrev   = ((p.teamAbbrevs ?? '') as string).split(',')[0].trim();
-    const fo           = foMap.get(p.playerId);
+    const teamAbbrev    = ((p.teamAbbrevs ?? '') as string).split(',')[0].trim();
+    const fo            = foMap.get(p.playerId);
     const totalFaceoffs = fo?.totalFaceoffs ?? 0;
     const foWins        = fo != null ? Math.round(totalFaceoffs * (fo.faceoffWinPct ?? 0)) : 0;
     const foLosses      = totalFaceoffs - foWins;

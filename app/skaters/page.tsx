@@ -190,7 +190,8 @@ export default function SkatersPage() {
   const [minFO, setMinFO]               = useState(100);
 
   useEffect(() => {
-    setMinFO(foTeamFilter === 'All' ? 100 : 50);
+    // When viewing a specific team, show all GP≥5 players (no FO minimum)
+    setMinFO(foTeamFilter === 'All' ? 100 : 0);
   }, [foTeamFilter]);
 
   const { data, error, isLoading } = useSWR<any>(
@@ -199,11 +200,26 @@ export default function SkatersPage() {
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
+  // Global faceoff leaderboard (all teams)
   const { data: foData, isLoading: foLoading } = useSWR<any>(
     view === 'faceoffs' ? `/api/skaters/faceoffs?season=${season}&gameType=${gameType}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
+
+  // Team-specific faceoffs: roster-based, includes all GP≥5 players regardless of FO count
+  const { data: foTeamData, isLoading: foTeamLoading } = useSWR<any>(
+    view === 'faceoffs' && foTeamFilter !== 'All'
+      ? `/api/team/${foTeamFilter}/faceoffs?season=${season}&gameType=${gameType}`
+      : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 300_000 }
+  );
+
+  const activeFoPlayers: any[] = foTeamFilter !== 'All'
+    ? (foTeamData?.players ?? [])
+    : (foData?.players ?? []);
+  const activeFoLoading = foTeamFilter !== 'All' ? foTeamLoading : foLoading;
 
   const foTeams = useMemo(
     () => ['All', ...Array.from(new Set((foData?.players ?? []).map((p: any) => p.teamAbbrev as string))).sort()],
@@ -546,10 +562,10 @@ export default function SkatersPage() {
             </div>
           </div>
 
-          {foLoading && <LoadingSpinner />}
-          {!foLoading && (
+          {activeFoLoading && <LoadingSpinner />}
+          {!activeFoLoading && (
             <FaceoffsTable
-              players={foData?.players ?? []}
+              players={activeFoPlayers}
               minFO={minFO}
               posFilter={foPos}
               teamFilter={foTeamFilter}
