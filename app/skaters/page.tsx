@@ -505,7 +505,10 @@ export default function SkatersPage() {
             {/* Team filter */}
             <select
               value={foTeamFilter}
-              onChange={(e) => setFoTeamFilter(e.target.value)}
+              onChange={(e) => {
+                setFoTeamFilter(e.target.value);
+                if (e.target.value !== 'All') setMinFO(50);
+              }}
               className="rounded-lg border border-[#1e2d45] bg-[#111520] px-3 py-1.5 text-sm text-white focus:border-[#00D1FF]/40 focus:outline-none focus:ring-1 focus:ring-[#00D1FF]/20"
               aria-label="Filter by team"
             >
