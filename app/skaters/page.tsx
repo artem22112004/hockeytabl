@@ -59,17 +59,20 @@ function FaceoffsTable({
   players,
   minFO,
   posFilter,
+  teamFilter,
 }: {
   players: any[];
   minFO: number;
   posFilter: string;
+  teamFilter: string;
 }) {
   const [sortKey, setSortKey] = useState<'foPct' | 'totalFaceoffs' | 'foWins'>('foPct');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   const filtered = useMemo(() => {
     let rows = players.filter((p) => (p.totalFaceoffs ?? 0) >= minFO);
-    if (posFilter !== 'All') rows = rows.filter((p) => p.position === posFilter);
+    if (posFilter  !== 'All') rows = rows.filter((p) => p.position   === posFilter);
+    if (teamFilter !== 'All') rows = rows.filter((p) => p.teamAbbrev === teamFilter);
     rows = [...rows].sort((a, b) => {
       const va = a[sortKey] ?? -1;
       const vb = b[sortKey] ?? -1;
@@ -117,7 +120,7 @@ function FaceoffsTable({
               <td className="px-3 py-2">
                 <Link
                   href={`/player/${p.id}`}
-                  className="flex items-center gap-2.5 text-white transition-colors hover:text-[#00D1FF]"
+                  className="flex items-center gap-2 text-white transition-colors hover:text-[#00D1FF]"
                 >
                   <Image
                     src={p.headshot}
@@ -125,6 +128,14 @@ function FaceoffsTable({
                     width={28}
                     height={28}
                     className="shrink-0 rounded-full object-cover ring-1 ring-[#1e2d45]"
+                    unoptimized
+                  />
+                  <Image
+                    src={p.teamLogo || teamLogoUrl(p.teamAbbrev)}
+                    alt={p.teamAbbrev}
+                    width={16}
+                    height={16}
+                    className="shrink-0 opacity-80"
                     unoptimized
                   />
                   <span className="font-medium">{p.fullName}</span>
@@ -174,8 +185,9 @@ export default function SkatersPage() {
   const [view, setView]             = useState<'points' | 'faceoffs'>('points');
 
   // Faceoff-specific filters
-  const [foPos, setFoPos]   = useState<string>('C');
-  const [minFO, setMinFO]   = useState(100);
+  const [foPos, setFoPos]         = useState<string>('C');
+  const [foTeamFilter, setFoTeamFilter] = useState<string>('All');
+  const [minFO, setMinFO]         = useState(100);
 
   const { data, error, isLoading } = useSWR<any>(
     `/api/skaters?season=${season}&gameType=${gameType}`,
@@ -187,6 +199,11 @@ export default function SkatersPage() {
     view === 'faceoffs' ? `/api/skaters/faceoffs?season=${season}&gameType=${gameType}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
+  );
+
+  const foTeams = useMemo(
+    () => ['All', ...Array.from(new Set((foData?.players ?? []).map((p: any) => p.teamAbbrev as string))).sort()],
+    [foData]
   );
 
   const players = useMemo<any[]>(
@@ -485,6 +502,18 @@ export default function SkatersPage() {
               ))}
             </div>
 
+            {/* Team filter */}
+            <select
+              value={foTeamFilter}
+              onChange={(e) => setFoTeamFilter(e.target.value)}
+              className="rounded-lg border border-[#1e2d45] bg-[#111520] px-3 py-1.5 text-sm text-white focus:border-[#00D1FF]/40 focus:outline-none focus:ring-1 focus:ring-[#00D1FF]/20"
+              aria-label="Filter by team"
+            >
+              {(foTeams as string[]).map((t) => (
+                <option key={t} value={t}>{t === 'All' ? 'All Teams' : t}</option>
+              ))}
+            </select>
+
             {/* Min FO filter */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-[#94A3B8]">Min FO:</span>
@@ -519,6 +548,7 @@ export default function SkatersPage() {
               players={foData?.players ?? []}
               minFO={minFO}
               posFilter={foPos}
+              teamFilter={foTeamFilter}
             />
           )}
         </div>
