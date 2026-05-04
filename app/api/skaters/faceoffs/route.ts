@@ -2,40 +2,47 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const STATS_BASE = 'https://api.nhle.com/stats/rest/en';
 
+async function fetchAllPages(baseUrl: string): Promise<any[]> {
+  const all: any[] = [];
+  let start = 0;
+  const PAGE = 100;
+  while (true) {
+    const res = await fetch(`${baseUrl}&start=${start}&limit=${PAGE}`, { next: { revalidate: 300 } });
+    if (!res.ok) break;
+    const data = await res.json();
+    const rows: any[] = data.data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE || all.length >= (data.total ?? 0)) break;
+    start += PAGE;
+  }
+  return all;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const season   = searchParams.get('season')   ?? '20252026';
   const gameType = searchParams.get('gameType') ?? '2';
 
-  // All qualifying skaters (GP ≥ 5) — basis for merging 0-faceoff players
   const summarySort    = encodeURIComponent(JSON.stringify([{ property: 'points', direction: 'DESC' }]));
   const summaryCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType} and gamesPlayed>=5`);
-  const summaryUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&start=0&limit=1000&cayenneExp=${summaryCayenne}`;
+  const summaryBaseUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&cayenneExp=${summaryCayenne}`;
 
-  // All faceoff data — no minFO filter
   const foSort    = encodeURIComponent(JSON.stringify([{ property: 'totalFaceoffs', direction: 'DESC' }]));
   const foCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType}`);
-  const foUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&start=0&limit=1000&cayenneExp=${foCayenne}`;
+  const foBaseUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&cayenneExp=${foCayenne}`;
 
-  const [summaryRes, foRes] = await Promise.all([
-    fetch(summaryUrl, { next: { revalidate: 300 } }),
-    fetch(foUrl,      { next: { revalidate: 300 } }),
-  ]);
-
-  if (!summaryRes.ok) return NextResponse.json({ players: [] });
-
-  const [summaryData, foData] = await Promise.all([
-    summaryRes.json(),
-    foRes.ok ? foRes.json() : Promise.resolve({ data: [] }),
+  const [summaryRows, foRows] = await Promise.all([
+    fetchAllPages(summaryBaseUrl),
+    fetchAllPages(foBaseUrl),
   ]);
 
   // Map playerId → faceoff row
   const foMap = new Map<number, any>();
-  for (const p of (foData.data ?? []) as any[]) {
+  for (const p of foRows) {
     foMap.set(p.playerId, p);
   }
 
-  const players = ((summaryData.data ?? []) as any[]).map((p) => {
+  const players = summaryRows.map((p) => {
     const teamAbbrev    = ((p.teamAbbrevs ?? '') as string).split(',')[0].trim();
     const fo            = foMap.get(p.playerId);
     const totalFaceoffs = fo?.totalFaceoffs ?? 0;
