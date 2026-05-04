@@ -190,8 +190,7 @@ export default function SkatersPage() {
   const [minFO, setMinFO]               = useState(100);
 
   useEffect(() => {
-    // When viewing a specific team, show all GP≥5 players (no FO minimum)
-    setMinFO(foTeamFilter === 'All' ? 100 : 0);
+    setMinFO(foTeamFilter === 'All' ? 100 : 5);
   }, [foTeamFilter]);
 
   const { data, error, isLoading } = useSWR<any>(
@@ -538,7 +537,7 @@ export default function SkatersPage() {
             <div className="flex items-center gap-2">
               <span className="text-xs text-[#94A3B8]">Min FO:</span>
               <div className="flex items-center gap-1 rounded-lg border border-[#1e2d45] bg-[#111520] p-1">
-                {[50, 100, 200, 500].map((n) => (
+                {(foTeamFilter !== 'All' ? [5, 20, 50, 100] : [50, 100, 200, 500]).map((n) => (
                   <button
                     key={n}
                     onClick={() => setMinFO(n)}
