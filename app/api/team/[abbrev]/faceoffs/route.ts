@@ -3,6 +3,22 @@ import { NextRequest, NextResponse } from 'next/server';
 const NHL_BASE   = 'https://api-web.nhle.com/v1';
 const STATS_BASE = 'https://api.nhle.com/stats/rest/en';
 
+async function fetchAllPages(baseUrl: string): Promise<any[]> {
+  const all: any[] = [];
+  let start = 0;
+  const PAGE = 100;
+  while (true) {
+    const res = await fetch(`${baseUrl}&start=${start}&limit=${PAGE}`, { next: { revalidate: 300 } });
+    if (!res.ok) break;
+    const data = await res.json();
+    const rows: any[] = data.data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE || all.length >= (data.total ?? 0)) break;
+    start += PAGE;
+  }
+  return all;
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { abbrev: string } }
@@ -25,35 +41,28 @@ export async function GET(
   ]);
   if (!rosterIds.size) return NextResponse.json({ players: [] });
 
-  // Step 2: season summary (GP≥5, limit 1000) + faceoff percentages in parallel
+  // Step 2: paginated summary + faceoff percentages in parallel
   const summarySort    = encodeURIComponent(JSON.stringify([{ property: 'points', direction: 'DESC' }]));
   const summaryCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType} and gamesPlayed>=5`);
-  const summaryUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&start=0&limit=1000&cayenneExp=${summaryCayenne}`;
+  const summaryBaseUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&cayenneExp=${summaryCayenne}`;
 
   const foSort    = encodeURIComponent(JSON.stringify([{ property: 'totalFaceoffs', direction: 'DESC' }]));
   const foCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType}`);
-  const foUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&start=0&limit=1000&cayenneExp=${foCayenne}`;
+  const foBaseUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&cayenneExp=${foCayenne}`;
 
-  const [summaryRes, foRes] = await Promise.all([
-    fetch(summaryUrl, { next: { revalidate: 300 } }),
-    fetch(foUrl,      { next: { revalidate: 300 } }),
-  ]);
-
-  if (!summaryRes.ok) return NextResponse.json({ players: [] });
-
-  const [summaryData, foData] = await Promise.all([
-    summaryRes.json(),
-    foRes.ok ? foRes.json() : Promise.resolve({ data: [] }),
+  const [summaryRows, foRows] = await Promise.all([
+    fetchAllPages(summaryBaseUrl),
+    fetchAllPages(foBaseUrl),
   ]);
 
   // Build faceoff map
   const foMap = new Map<number, any>();
-  for (const p of (foData.data ?? []) as any[]) {
+  for (const p of foRows) {
     foMap.set(p.playerId, p);
   }
 
   // Keep only players on this team's roster with GP≥5
-  const players = ((summaryData.data ?? []) as any[])
+  const players = summaryRows
     .filter((p) => rosterIds.has(p.playerId))
     .map((p) => {
       const fo            = foMap.get(p.playerId);
