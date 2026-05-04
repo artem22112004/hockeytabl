@@ -6,36 +6,57 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const season   = searchParams.get('season')   ?? '20252026';
   const gameType = searchParams.get('gameType') ?? '2';
-  const minFO    = parseInt(searchParams.get('minFO') ?? '100', 10);
 
-  const sort    = encodeURIComponent(JSON.stringify([{ property: 'totalFaceoffs', direction: 'DESC' }]));
-  const cayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType}`);
-  const url = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${sort}&start=0&limit=600&cayenneExp=${cayenne}`;
+  // All qualifying skaters (GP ≥ 5) for merging 0-faceoff players
+  const summarySort    = encodeURIComponent(JSON.stringify([{ property: 'points', direction: 'DESC' }]));
+  const summaryCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType} and gamesPlayed>=5`);
+  const summaryUrl = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${summarySort}&start=0&limit=700&cayenneExp=${summaryCayenne}`;
 
-  const res = await fetch(url, { next: { revalidate: 300 } });
-  if (!res.ok) return NextResponse.json({ players: [] });
-  const data = await res.json();
+  // Faceoff percentages — no minFO filter, all players who have taken faceoffs
+  const foSort    = encodeURIComponent(JSON.stringify([{ property: 'totalFaceoffs', direction: 'DESC' }]));
+  const foCayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType}`);
+  const foUrl = `${STATS_BASE}/skater/faceoffpercentages?isAggregate=false&isGame=false&sort=${foSort}&start=0&limit=700&cayenneExp=${foCayenne}`;
 
-  const players = ((data.data ?? []) as any[])
-    .filter((p) => (p.totalFaceoffs ?? 0) >= minFO)
-    .map((p) => {
-      const foWins   = Math.round((p.totalFaceoffs ?? 0) * (p.faceoffWinPct ?? 0));
-      const foLosses = (p.totalFaceoffs ?? 0) - foWins;
-      const teamAbbrev = ((p.teamAbbrevs ?? '') as string).split(',')[0].trim();
-      return {
-        id:            p.playerId,
-        fullName:      p.skaterFullName,
-        position:      p.positionCode,
-        teamAbbrev,
-        gamesPlayed:   p.gamesPlayed   ?? 0,
-        totalFaceoffs: p.totalFaceoffs ?? 0,
-        foWins,
-        foLosses,
-        foPct: p.faceoffWinPct != null ? +(p.faceoffWinPct * 100).toFixed(2) : null,
-        headshot: `https://assets.nhle.com/mugs/nhl/60x60/${p.playerId}.png`,
-        teamLogo: teamAbbrev ? `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg` : '',
-      };
-    });
+  const [summaryRes, foRes] = await Promise.all([
+    fetch(summaryUrl, { next: { revalidate: 300 } }),
+    fetch(foUrl,      { next: { revalidate: 300 } }),
+  ]);
+
+  if (!summaryRes.ok) return NextResponse.json({ players: [] });
+
+  const [summaryData, foData] = await Promise.all([
+    summaryRes.json(),
+    foRes.ok ? foRes.json() : Promise.resolve({ data: [] }),
+  ]);
+
+  // Map playerId → faceoff row
+  const foMap = new Map<number, any>();
+  for (const p of (foData.data ?? []) as any[]) {
+    foMap.set(p.playerId, p);
+  }
+
+  const players = ((summaryData.data ?? []) as any[]).map((p) => {
+    const teamAbbrev   = ((p.teamAbbrevs ?? '') as string).split(',')[0].trim();
+    const fo           = foMap.get(p.playerId);
+    const totalFaceoffs = fo?.totalFaceoffs ?? 0;
+    const foWins        = fo != null ? Math.round(totalFaceoffs * (fo.faceoffWinPct ?? 0)) : 0;
+    const foLosses      = totalFaceoffs - foWins;
+    return {
+      id:            p.playerId,
+      fullName:      p.skaterFullName ?? '',
+      position:      p.positionCode   ?? '',
+      teamAbbrev,
+      gamesPlayed:   p.gamesPlayed    ?? 0,
+      totalFaceoffs,
+      foWins,
+      foLosses,
+      foPct: fo?.faceoffWinPct != null && totalFaceoffs > 0
+        ? +(fo.faceoffWinPct * 100).toFixed(2)
+        : null,
+      headshot: `https://assets.nhle.com/mugs/nhl/60x60/${p.playerId}.png`,
+      teamLogo: teamAbbrev ? `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg` : '',
+    };
+  });
 
   return NextResponse.json({ players });
 }

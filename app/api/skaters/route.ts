@@ -1,67 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const NHL_BASE = 'https://api-web.nhle.com/v1';
-
-// Fetch a single category — the NHL API rejects comma-separated categories (400)
-// and returns only { id, firstName, lastName, headshot, teamAbbrev, teamName,
-// teamLogo, position, value } per player — no cross-stat fields.
-async function fetchCategory(
-  season: string,
-  gameType: string,
-  category: string,
-  limit: number
-): Promise<any[]> {
-  const res = await fetch(
-    `${NHL_BASE}/skater-stats-leaders/${season}/${gameType}?categories=${category}&limit=${limit}`,
-    { next: { revalidate: 300 } }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (data[category] ?? []) as any[];
-}
-
-function toMap(arr: any[]): Map<number, number> {
-  return new Map(arr.map((p) => [p.id, p.value]));
-}
+const STATS_BASE = 'https://api.nhle.com/stats/rest/en';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const season   = searchParams.get('season')   ?? '20242025';
+  const season   = searchParams.get('season')   ?? '20252026';
   const gameType = searchParams.get('gameType') ?? '2';
 
-  // Parallel fetches — limit 200 for secondary stats so every top-100 points
-  // scorer is covered even if they're not in the top 100 for that other stat.
-  const [ptsArr, gArr, aArr, pmArr, toiArr, pimArr] = await Promise.all([
-    fetchCategory(season, gameType, 'points',      100),
-    fetchCategory(season, gameType, 'goals',       200),
-    fetchCategory(season, gameType, 'assists',     200),
-    fetchCategory(season, gameType, 'plusMinus',   500),
-    fetchCategory(season, gameType, 'toi',         200),
-    fetchCategory(season, gameType, 'penaltyMins', 200),
-  ]);
+  const sort    = encodeURIComponent(JSON.stringify([{ property: 'points', direction: 'DESC' }]));
+  const cayenne = encodeURIComponent(`seasonId=${season} and gameTypeId=${gameType} and gamesPlayed>=5`);
+  const url = `${STATS_BASE}/skater/summary?isAggregate=false&isGame=false&sort=${sort}&start=0&limit=700&cayenneExp=${cayenne}`;
 
-  const gMap   = toMap(gArr);
-  const aMap   = toMap(aArr);
-  const pmMap  = toMap(pmArr);
-  const toiMap = toMap(toiArr);
-  const pimMap = toMap(pimArr);
+  const res = await fetch(url, { next: { revalidate: 300 } });
+  if (!res.ok) return NextResponse.json({ skaters: [] });
+  const data = await res.json();
 
-  const skaters = ptsArr.map((p) => ({
-    id:         p.id,
-    firstName:  p.firstName,
-    lastName:   p.lastName,
-    headshot:   p.headshot,
-    teamAbbrev: p.teamAbbrev,
-    teamName:   p.teamName,
-    teamLogo:   p.teamLogo,
-    position:   p.position,
-    pts:        p.value           ?? 0,
-    g:          gMap.get(p.id)   ?? 0,
-    a:          aMap.get(p.id)   ?? 0,
-    plusMinus:  pmMap.has(p.id) ? pmMap.get(p.id)! : null,
-    pim:        pimMap.get(p.id) ?? 0,
-    toiSeconds: toiMap.get(p.id) ?? 0,
-  }));
+  const skaters = ((data.data ?? []) as any[]).map((p) => {
+    const teamAbbrev = ((p.teamAbbrevs ?? '') as string).split(',')[0].trim();
+    return {
+      id:          p.playerId,
+      fullName:    p.skaterFullName ?? '',
+      headshot:    `https://assets.nhle.com/mugs/nhl/60x60/${p.playerId}.png`,
+      teamAbbrev,
+      teamName:    '',
+      teamLogo:    teamAbbrev ? `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg` : '',
+      position:    p.positionCode     ?? '',
+      pts:         p.points           ?? 0,
+      g:           p.goals            ?? 0,
+      a:           p.assists          ?? 0,
+      plusMinus:   p.plusMinus        ?? null,
+      pim:         p.penaltyMinutes   ?? 0,
+      toiSeconds:  p.timeOnIcePerGame != null ? Math.round(p.timeOnIcePerGame) : 0,
+      gamesPlayed: p.gamesPlayed      ?? 0,
+    };
+  });
 
   return NextResponse.json({ skaters });
 }

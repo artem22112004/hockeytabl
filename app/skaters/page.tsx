@@ -255,10 +255,10 @@ export default function SkatersPage() {
       {
         id: 'player',
         header: 'Player',
-        accessorFn: (r) => `${r.firstName.default} ${r.lastName.default}`,
+        accessorFn: (r) => r.fullName ?? '',
         cell: ({ row }) => {
           const p    = row.original;
-          const name = `${p.firstName.default} ${p.lastName.default}`;
+          const name = p.fullName ?? '';
           return (
             <Link
               href={`/player/${p.id}`}
