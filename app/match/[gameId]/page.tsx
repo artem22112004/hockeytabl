@@ -10,7 +10,11 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type StatTab = 'goals' | 'shots' | 'hits' | 'pp' | 'penalty' | 'faceoffs';
-type Location = 'all' | 'home' | 'away';
+type Location = 'all' | 'home' | 'away' | 'h2h';
+
+const LOCATION_LABELS: Record<Location, string> = {
+  all: 'All', home: 'Home', away: 'Away', h2h: 'H2H',
+};
 
 const STAT_TABS: { id: StatTab; label: string }[] = [
   { id: 'goals',    label: 'Goals'      },
@@ -609,48 +613,52 @@ export default function MatchPage({ params }: { params: { gameId: string } }) {
           ))}
         </div>
 
-        {/* Location filter */}
+        {/* Location / H2H filter */}
         <div className="flex items-center gap-1 rounded-lg border border-[#1e2d45] bg-[#111520] p-1">
-          {(['all', 'home', 'away'] as const).map((loc) => (
+          {(['all', 'home', 'away', 'h2h'] as const).map((loc) => (
             <button
               key={loc}
               onClick={() => setLocation(loc)}
-              className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition-all duration-150 ${
+              className={`rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
                 location === loc
                   ? 'bg-gradient-to-r from-[#00D1FF]/15 to-[#6366f1]/15 text-white'
                   : 'text-[#94A3B8] hover:text-white'
               }`}
             >
-              {loc}
+              {LOCATION_LABELS[loc]}
             </button>
           ))}
         </div>
       </div>
 
       {/* Two-column stat tables */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TeamColumn
-          abbrev={game.awayTeam.abbrev}
-          name={game.awayTeam.name}
-          logo={game.awayTeam.logo}
-          allGames={awayGames}
-          tab={tab}
-          location={location}
-        />
-        <TeamColumn
-          abbrev={game.homeTeam.abbrev}
-          name={game.homeTeam.name}
-          logo={game.homeTeam.logo}
-          allGames={homeGames}
-          tab={tab}
-          location={location}
-        />
-      </div>
+      {location !== 'h2h' && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <TeamColumn
+            abbrev={game.awayTeam.abbrev}
+            name={game.awayTeam.name}
+            logo={game.awayTeam.logo}
+            allGames={awayGames}
+            tab={tab}
+            location={location}
+          />
+          <TeamColumn
+            abbrev={game.homeTeam.abbrev}
+            name={game.homeTeam.name}
+            logo={game.homeTeam.logo}
+            allGames={homeGames}
+            tab={tab}
+            location={location}
+          />
+        </div>
+      )}
 
-      {/* H2H */}
-      <div className="rounded-xl border border-[#1e2d45] bg-[#0B0E14] p-5">
-        <H2HSection team1={game.awayTeam.abbrev} team2={game.homeTeam.abbrev} season={season} />
-      </div>
+      {/* H2H tab */}
+      {location === 'h2h' && (
+        <div className="mx-auto w-full max-w-2xl rounded-xl border border-[#1e2d45] bg-[#0B0E14] p-5">
+          <H2HSection team1={game.awayTeam.abbrev} team2={game.homeTeam.abbrev} season={season} />
+        </div>
+      )}
     </div>
   );
 }
